@@ -2,7 +2,12 @@ package ui
 
 import (
 	"fmt"
+	"image"
 	"image/color"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -14,6 +19,30 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
+
+// loadImageFromURL fetches an image from a URL and returns a CanvasObject.
+// Falls back to a placeholder rectangle if the image cannot be loaded.
+func loadImageFromURL(url string, w, h float32) fyne.CanvasObject {
+	resp, err := http.Get(url)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		ph := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+		ph.SetMinSize(fyne.NewSize(w, h))
+		return ph
+	}
+	defer resp.Body.Close()
+
+	imgDecoded, _, err := image.Decode(resp.Body)
+	if err != nil {
+		ph := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+		ph.SetMinSize(fyne.NewSize(w, h))
+		return ph
+	}
+
+	img := canvas.NewImageFromImage(imgDecoded)
+	img.FillMode = canvas.ImageFillContain
+	img.SetMinSize(fyne.NewSize(w, h))
+	return img
+}
 
 func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
 	// Container principal qui va changer entre la liste et les détails
@@ -60,6 +89,9 @@ func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
 				}
 			}
 
+			// Image de profil
+			avatar := loadImageFromURL(artist.Image, 80, 80)
+
 			// Création de la carte d'artiste (texte clair sur fond sombre)
 			name := canvas.NewText(artist.Name, color.White)
 			name.TextSize = 18
@@ -92,10 +124,10 @@ func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
 			})
 			buttonRow := container.NewHBox(layout.NewSpacer(), detailsButton, layout.NewSpacer())
 
-			// Carte avec fond et padding
+			// Carte avec fond et padding, avatar à gauche
 			cardBg := canvas.NewRectangle(color.NRGBA{R: 32, G: 32, B: 32, A: 255})
 			cardBg.SetMinSize(fyne.NewSize(0, 150))
-			cardContent := container.NewVBox(
+			textCol := container.NewVBox(
 				name,
 				widget.NewSeparator(),
 				year,
@@ -103,7 +135,11 @@ func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
 				firstAlbum,
 				buttonRow,
 			)
-			card := container.NewMax(cardBg, container.NewPadded(cardContent))
+			cardContent := container.NewHBox(
+				container.NewPadded(container.NewCenter(avatar)),
+				container.NewPadded(textCol),
+			)
+			card := container.NewMax(cardBg, cardContent)
 
 			cardsContainer.Add(card)
 			cardsContainer.Add(widget.NewSeparator())

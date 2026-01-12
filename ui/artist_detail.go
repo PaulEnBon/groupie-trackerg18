@@ -2,7 +2,13 @@ package ui
 
 import (
 	"fmt"
+	"image"
 	"image/color"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"net/http"
+	"sort"
 	"strings"
 
 	"groupie-tracker/api"
@@ -15,6 +21,28 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 )
+
+// loadDetailImage fetches artist image for detail view
+func loadDetailImage(url string, w, h float32) fyne.CanvasObject {
+	resp, err := http.Get(url)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		ph := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+		ph.SetMinSize(fyne.NewSize(w, h))
+		return ph
+	}
+	defer resp.Body.Close()
+
+	imgDecoded, _, err := image.Decode(resp.Body)
+	if err != nil {
+		ph := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+		ph.SetMinSize(fyne.NewSize(w, h))
+		return ph
+	}
+	img := canvas.NewImageFromImage(imgDecoded)
+	img.FillMode = canvas.ImageFillContain
+	img.SetMinSize(fyne.NewSize(w, h))
+	return img
+}
 
 func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.CanvasObject {
 	// Fonction pour capitaliser les mots
@@ -45,28 +73,26 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 		artist.FirstAlbum,
 		len(artist.Members),
 	)
-	info := canvas.NewText(infoText, color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-	info.TextSize = 18
+
+	// CORRECTION 1 : Utilisation de Label avec Wrapping pour les infos
+	info := widget.NewLabel(infoText)
+	info.Wrapping = fyne.TextWrapWord
 
 	// Liste des membres
 	membersTitle := canvas.NewText("Membres du groupe", color.White)
 	membersTitle.TextSize = 20
 	membersTitle.TextStyle = fyne.TextStyle{Bold: true}
 
-	membersList := widget.NewList(
-		func() int { return len(artist.Members) },
-		func() fyne.CanvasObject {
-			return canvas.NewText("", color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-		},
-		func(i widget.ListItemID, o fyne.CanvasObject) {
-			ct := o.(*canvas.Text)
-			ct.Text = "• " + artist.Members[i]
-			ct.TextSize = 16
-			ct.Color = color.NRGBA{R: 235, G: 235, B: 235, A: 255}
-			ct.Refresh()
-		},
-	)
-	membersList.Resize(fyne.NewSize(0, float32(len(artist.Members)*50)))
+	// CORRECTION 2 : Remplacement de widget.NewList par un VBox simple
+	// Cela force l'affichage de tout le texte sans couper
+	membersVBox := container.NewVBox()
+	for _, member := range artist.Members {
+		// Création d'un label pour chaque membre
+		lbl := widget.NewLabel("• " + member)
+		lbl.Wrapping = fyne.TextWrapWord             // Important pour les longs noms
+		lbl.TextStyle = fyne.TextStyle{Italic: true} // Style optionnel
+		membersVBox.Add(lbl)
+	}
 
 	// Récupérer les relations (concerts)
 	relation, err := api.FetchRelation(artist.ID)
@@ -78,42 +104,56 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 
 	var concertsContent fyne.CanvasObject
 	if err != nil {
-		msg := canvas.NewText("❌ Impossible de charger les informations de concerts", color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-		msg.TextSize = 16
+		msg := widget.NewLabel("❌ Impossible de charger les informations de concerts")
+		msg.Wrapping = fyne.TextWrapWord
 		concertsContent = msg
 	} else if len(relation.DatesLocations) == 0 {
-		msg := canvas.NewText("Aucun concert programmé", color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-		msg.TextSize = 16
+		msg := widget.NewLabel("Aucun concert programmé")
+		msg.Wrapping = fyne.TextWrapWord
 		concertsContent = msg
 	} else {
-		concertsList := container.NewVBox()
+		// Ordonner les lieux pour un affichage stable
+		locs := make([]string, 0, len(relation.DatesLocations))
+		totalDates := 0
+		for loc, dates := range relation.DatesLocations {
+			locs = append(locs, loc)
+			totalDates += len(dates)
+		}
+		sort.Strings(locs)
 
-		for location, dates := range relation.DatesLocations {
-			// Formater le nom de la ville
+		header := widget.NewLabel(fmt.Sprintf("%d lieux • %d dates", len(locs), totalDates))
+		header.TextStyle = fyne.TextStyle{Bold: true}
+
+		concertCards := container.NewVBox(header, widget.NewSeparator())
+
+		for _, location := range locs {
+			dates := relation.DatesLocations[location]
 			locationFormatted := strings.ReplaceAll(location, "-", ", ")
 			locationFormatted = strings.ReplaceAll(locationFormatted, "_", " ")
 			locationFormatted = toTitle(locationFormatted)
 
-			locationLabel := canvas.NewText("📍 "+locationFormatted, color.RGBA{R: 120, G: 220, B: 255, A: 255})
-			locationLabel.TextSize = 16
-			locationLabel.TextStyle = fyne.TextStyle{Bold: true}
+			locLabel := widget.NewLabel("📍 " + locationFormatted)
+			locLabel.TextStyle = fyne.TextStyle{Bold: true}
+			locLabel.Wrapping = fyne.TextWrapWord
 
-			concertsList.Add(locationLabel)
+			datesLabel := widget.NewLabel("🗓️  " + strings.Join(dates, "  •  "))
+			datesLabel.Wrapping = fyne.TextWrapWord
 
-			// Ajouter les dates
-			for _, date := range dates {
-				dateLabel := canvas.NewText("   🗓️  "+date, color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-				dateLabel.TextSize = 14
-				concertsList.Add(dateLabel)
-			}
+			cardBg := canvas.NewRectangle(color.NRGBA{R: 40, G: 40, B: 40, A: 255})
+			cardBg.SetMinSize(fyne.NewSize(0, 100))
 
-			// Séparateur
-			separator := canvas.NewRectangle(color.Gray{Y: 80})
-			separator.SetMinSize(fyne.NewSize(0, 1))
-			concertsList.Add(separator)
+			cardContent := container.NewVBox(
+				locLabel,
+				widget.NewSeparator(),
+				datesLabel,
+			)
+			card := container.NewMax(cardBg, container.NewPadded(cardContent))
+
+			concertCards.Add(card)
+			concertCards.Add(widget.NewSeparator())
 		}
 
-		concertsContent = container.NewVScroll(concertsList)
+		concertsContent = container.NewVScroll(concertCards)
 	}
 
 	// Statistiques
@@ -138,8 +178,10 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 		locationCount,
 		2026-artist.CreationDate,
 	)
-	stats := canvas.NewText(statsText, color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-	stats.TextSize = 18
+
+	// CORRECTION 4 : Label avec Wrapping pour les stats
+	stats := widget.NewLabel(statsText)
+	stats.Wrapping = fyne.TextWrapWord
 
 	// Bouton retour
 	backButton := widget.NewButton("⬅ Retour à la liste", func() {
@@ -147,7 +189,12 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 	})
 
 	// ========== PANNEAU GAUCHE - INFOS GÉNÉRALES ==========
+	// Avatar en grand au-dessus du titre
+	avatar := loadDetailImage(artist.Image, 180, 180)
+
 	infoBox := container.NewVBox(
+		container.NewCenter(avatar),
+		widget.NewSeparator(),
 		title,
 		widget.NewSeparator(),
 		info,
@@ -159,13 +206,15 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 	)
 
 	// ========== PANNEAU GAUCHE - MEMBRES ==========
+	// On utilise membersVBox ici au lieu de la List
 	membersBox := container.NewVBox(
 		membersTitle,
 		widget.NewSeparator(),
-		membersList,
+		membersVBox,
 	)
 	membersBg := canvas.NewRectangle(color.NRGBA{R: 32, G: 32, B: 32, A: 255})
-	membersBg.SetMinSize(fyne.NewSize(300, 400))
+	// On augmente un peu la taille min pour être sûr
+	membersBg.SetMinSize(fyne.NewSize(300, 300))
 	membersPadded := container.NewVBox(
 		container.NewCenter(container.NewMax(membersBg, container.NewPadded(membersBox))),
 	)
@@ -190,6 +239,8 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 		widget.NewSeparator(),
 		statsPadded,
 	)
+
+	// Scroll global pour la gauche
 	leftScroll := container.NewVScroll(leftPanelContent)
 
 	// ========== PANNEAU DROIT - CONCERTS ==========
@@ -201,6 +252,8 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 	rightBg := canvas.NewRectangle(color.NRGBA{R: 32, G: 32, B: 32, A: 255})
 	rightBg.SetMinSize(fyne.NewSize(400, 900))
 	rightPadded := container.NewMax(rightBg, container.NewPadded(rightPanel))
+
+	// Scroll global pour la droite
 	rightScroll := container.NewVScroll(rightPadded)
 	rightScroll.SetMinSize(fyne.NewSize(400, 900))
 
@@ -218,7 +271,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 		splitContainer,
 	)
 
-	// Fond opaque pour éviter la transparence sur la liste
+	// Fond opaque
 	background := canvas.NewRectangle(color.NRGBA{R: 20, G: 20, B: 20, A: 240})
 	return container.NewMax(background, content)
 }
