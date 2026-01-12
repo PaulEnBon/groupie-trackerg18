@@ -7,9 +7,12 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"groupie-tracker/api"
 	"groupie-tracker/models"
@@ -24,11 +27,21 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// loadDetailImage charge l'image de l'artiste
+// --- PALETTE DE COULEURS CYBERPUNK ---
+var (
+	ColBackground = color.NRGBA{R: 15, G: 10, B: 25, A: 255}    // Violet très sombre
+	ColCard       = color.NRGBA{R: 30, G: 25, B: 45, A: 255}    // Violet/Gris
+	ColAccent     = color.NRGBA{R: 0, G: 255, B: 255, A: 255}   // Cyan Fluo
+	ColHighlight  = color.NRGBA{R: 255, G: 0, B: 128, A: 255}   // Rose Fluo
+	ColText       = color.NRGBA{R: 240, G: 240, B: 255, A: 255} // Blanc bleuté
+)
+
+// --- FONCTIONS UTILITAIRES ---
+
 func loadDetailImage(url string, w, h float32) fyne.CanvasObject {
 	resp, err := http.Get(url)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		ph := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+		ph := canvas.NewRectangle(ColCard)
 		ph.SetMinSize(fyne.NewSize(w, h))
 		return ph
 	}
@@ -36,7 +49,7 @@ func loadDetailImage(url string, w, h float32) fyne.CanvasObject {
 
 	imgDecoded, _, err := image.Decode(resp.Body)
 	if err != nil {
-		ph := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+		ph := canvas.NewRectangle(ColCard)
 		ph.SetMinSize(fyne.NewSize(w, h))
 		return ph
 	}
@@ -46,235 +59,243 @@ func loadDetailImage(url string, w, h float32) fyne.CanvasObject {
 	return img
 }
 
-func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.CanvasObject {
-	// Fonction pour capitaliser les mots
-	toTitle := func(s string) string {
-		words := strings.Fields(s)
-		for i, word := range words {
-			if len(word) > 0 {
-				runes := []rune(word)
-				runes[0] = unicode.ToUpper(runes[0])
-				words[i] = string(runes)
-			}
-		}
-		return strings.Join(words, " ")
-	}
+func createCyberCard(title, value string, icon fyne.Resource) fyne.CanvasObject {
+	iconW := widget.NewIcon(icon)
 
-	// Titre avec le nom de l'artiste
-	title := canvas.NewText(artist.Name, color.White)
+	valText := canvas.NewText(value, ColAccent)
+	valText.TextSize = 20
+	valText.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	valText.Alignment = fyne.TextAlignCenter
+
+	lblText := canvas.NewText(strings.ToUpper(title), ColText)
+	lblText.TextSize = 10
+	lblText.Alignment = fyne.TextAlignCenter
+
+	content := container.NewVBox(
+		container.NewCenter(iconW),
+		valText,
+		lblText,
+	)
+
+	bg := canvas.NewRectangle(ColCard)
+	border := canvas.NewRectangle(ColHighlight)
+	border.SetMinSize(fyne.NewSize(0, 2))
+
+	return container.NewBorder(nil, border, nil, nil,
+		container.NewMax(bg, container.NewPadded(content)))
+}
+
+func toTitle(s string) string {
+	words := strings.Fields(s)
+	for i, word := range words {
+		if len(word) > 0 {
+			runes := []rune(word)
+			runes[0] = unicode.ToUpper(runes[0])
+			words[i] = string(runes)
+		}
+	}
+	return strings.Join(words, " ")
+}
+
+// --- FONCTION PRINCIPALE ---
+
+func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.CanvasObject {
+	// 1. HEADER
+	title := canvas.NewText(strings.ToUpper(artist.Name), ColAccent)
 	title.TextSize = 32
-	title.TextStyle = fyne.TextStyle{Bold: true}
+	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 	title.Alignment = fyne.TextAlignCenter
 
-	// Informations générales
-	infoText := fmt.Sprintf(
-		"📅 Création: %d\n"+
-			"🎵 1er Album: %s\n"+
-			"👥 Membres: %d",
-		artist.CreationDate,
-		artist.FirstAlbum,
-		len(artist.Members),
-	)
-	info := widget.NewLabel(infoText)
-	info.Wrapping = fyne.TextWrapWord
-	info.Alignment = fyne.TextAlignCenter
+	decoLine := canvas.NewRectangle(ColHighlight)
+	decoLine.SetMinSize(fyne.NewSize(100, 3))
 
-	// --- NOUVEAU : BOUTONS STREAMING ---
-	streamingTitle := canvas.NewText("🎧 Écouter sur", color.NRGBA{R: 180, G: 180, B: 180, A: 255})
-	streamingTitle.TextSize = 16
-	streamingTitle.Alignment = fyne.TextAlignCenter
-
-	// Création des URLs de recherche
+	// 2. STREAMING BAR
 	encodedName := url.QueryEscape(artist.Name)
 	spotifyUrl, _ := url.Parse("https://open.spotify.com/search/" + encodedName)
 	youtubeUrl, _ := url.Parse("https://www.youtube.com/results?search_query=" + encodedName)
 	deezerUrl, _ := url.Parse("https://www.deezer.com/search/" + encodedName)
 
-	// Boutons avec icônes (génériques car Fyne n'a pas les logos de marques)
-	btnSpotify := widget.NewButtonWithIcon("Spotify", theme.MediaPlayIcon(), func() {
-		app.OpenURL(spotifyUrl)
-	})
-	btnYouTube := widget.NewButtonWithIcon("YouTube", theme.MediaVideoIcon(), func() {
-		app.OpenURL(youtubeUrl)
-	})
-	btnDeezer := widget.NewButtonWithIcon("Deezer", theme.VolumeUpIcon(), func() {
-		app.OpenURL(deezerUrl)
-	})
+	btnSpotify := widget.NewButtonWithIcon("", theme.MediaPlayIcon(), func() { app.OpenURL(spotifyUrl) })
+	btnYouTube := widget.NewButtonWithIcon("", theme.MediaVideoIcon(), func() { app.OpenURL(youtubeUrl) })
+	btnDeezer := widget.NewButtonWithIcon("", theme.VolumeUpIcon(), func() { app.OpenURL(deezerUrl) })
 
-	streamingGrid := container.NewGridWithColumns(1,
-		btnSpotify,
-		btnYouTube,
-		btnDeezer,
-	)
-	// -----------------------------------
+	streamingBar := container.NewGridWithColumns(3, btnSpotify, btnYouTube, btnDeezer)
 
-	// Liste des membres
-	membersTitle := canvas.NewText("Membres du groupe", color.White)
-	membersTitle.TextSize = 20
-	membersTitle.TextStyle = fyne.TextStyle{Bold: true}
-
-	membersVBox := container.NewVBox()
-	for _, member := range artist.Members {
-		lbl := widget.NewLabel("• " + member)
-		lbl.Wrapping = fyne.TextWrapWord
-		lbl.TextStyle = fyne.TextStyle{Italic: true}
-		membersVBox.Add(lbl)
-	}
-
-	// Récupérer les relations (concerts)
+	// 3. STATS
 	relation, err := api.FetchRelation(artist.ID)
-
-	// Section des concerts
-	concertsTitle := canvas.NewText("🌍 Concerts et Tournées", color.White)
-	concertsTitle.TextSize = 20
-	concertsTitle.TextStyle = fyne.TextStyle{Bold: true}
-
-	var concertsContent fyne.CanvasObject
-	if err != nil {
-		msg := widget.NewLabel("❌ Impossible de charger les informations de concerts")
-		msg.Wrapping = fyne.TextWrapWord
-		concertsContent = msg
-	} else if len(relation.DatesLocations) == 0 {
-		msg := widget.NewLabel("Aucun concert programmé")
-		msg.Wrapping = fyne.TextWrapWord
-		concertsContent = msg
-	} else {
-		// Conteneur principal pour les cartes de concerts
-		cardsContainer := container.NewVBox()
-
-		for location, dates := range relation.DatesLocations {
-			// Formater le nom de la ville
-			locationRaw := strings.ReplaceAll(location, "-", ", ")
-			locationRaw = strings.ReplaceAll(locationRaw, "_", " ")
-			locationTitle := toTitle(locationRaw)
-
-			// URL Google Maps
-			query := url.QueryEscape(locationTitle)
-			mapURL := "https://www.google.com/maps/search/?api=1&query=" + query
-			parsedURL, _ := url.Parse(mapURL)
-
-			// Contenu de la carte
-			cityLabel := widget.NewLabel(locationTitle)
-			cityLabel.TextStyle = fyne.TextStyle{Bold: true}
-			cityLabel.Wrapping = fyne.TextWrapWord
-
-			var datesText string
-			for _, date := range dates {
-				datesText += "🗓️ " + date + "\n"
-			}
-			datesLabel := widget.NewLabel(datesText)
-			datesLabel.Wrapping = fyne.TextWrapWord
-
-			// Bouton Map
-			mapButton := widget.NewButtonWithIcon("Voir sur la carte", theme.SearchIcon(), func() {
-				app.OpenURL(parsedURL)
-			})
-
-			cardContent := container.NewVBox(
-				cityLabel,
-				datesLabel,
-				container.NewHBox(layout.NewSpacer(), mapButton),
-			)
-
-			// Fond de carte
-			cardBg := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
-
-			cardItem := container.NewMax(
-				cardBg,
-				container.NewPadded(cardContent),
-			)
-
-			cardsContainer.Add(cardItem)
-			cardsContainer.Add(layout.NewSpacer())
-		}
-
-		concertsContent = container.NewVScroll(cardsContainer)
-	}
-
-	// Statistiques
-	statsTitle := canvas.NewText("📊 Statistiques", color.White)
-	statsTitle.TextSize = 20
-	statsTitle.TextStyle = fyne.TextStyle{Bold: true}
-
 	concertCount := 0
-	locationCount := 0
 	if err == nil && relation != nil {
-		locationCount = len(relation.DatesLocations)
 		for _, dates := range relation.DatesLocations {
 			concertCount += len(dates)
 		}
 	}
 
-	statsText := fmt.Sprintf(
-		"🎤 Total de concerts: %d\n\n"+
-			"🌍 Pays/Villes visités: %d\n\n"+
-			"🎸 Années actives: %d ans",
-		concertCount,
-		locationCount,
-		2026-artist.CreationDate,
-	)
-	stats := widget.NewLabel(statsText)
-	stats.Wrapping = fyne.TextWrapWord
-
-	// Bouton retour
-	backButton := widget.NewButtonWithIcon("Retour à la liste", theme.NavigateBackIcon(), func() {
-		onBack()
-	})
-
-	// ========== STRUCTURE GLOBALE ==========
-
-	// Image de l'artiste
-	avatar := loadDetailImage(artist.Image, 200, 200)
-
-	// Panneau Gauche : On ajoute la section Streaming ici
-	leftPanel := container.NewVBox(
-		container.NewCenter(avatar),
-		widget.NewSeparator(),
-		container.NewPadded(info),
-		widget.NewSeparator(),
-		container.NewPadded(streamingTitle), // Titre Streaming
-		container.NewPadded(streamingGrid),  // Boutons Streaming
-		widget.NewSeparator(),
-		container.NewPadded(membersTitle),
-		container.NewPadded(membersVBox),
-		widget.NewSeparator(),
-		container.NewPadded(statsTitle),
-		container.NewPadded(stats),
-	)
-	leftScroll := container.NewVScroll(leftPanel)
-
-	// Panneau Droit (Concerts)
-	rightPanel := container.NewVBox(
-		container.NewPadded(concertsTitle),
-		widget.NewSeparator(),
+	statsGrid := container.NewGridWithColumns(2,
+		createCyberCard("Since", fmt.Sprintf("%d", artist.CreationDate), theme.HistoryIcon()),
+		createCyberCard("Debut", artist.FirstAlbum, theme.MediaMusicIcon()),
+		createCyberCard("Team", fmt.Sprintf("%d", len(artist.Members)), theme.AccountIcon()),
+		createCyberCard("Shows", fmt.Sprintf("%d", concertCount), theme.InfoIcon()),
 	)
 
-	rightContainer := container.NewBorder(
-		rightPanel, // Haut
-		nil, nil, nil,
-		concertsContent, // Centre (Scroll)
-	)
+	// 4. MEMBRES
+	membersLabel := canvas.NewText("> TEAM_MEMBERS", ColHighlight)
+	membersLabel.TextSize = 14
+	membersLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
-	// Split Container
-	split := container.NewHSplit(leftScroll, rightContainer)
-	split.Offset = 0.35
+	membersVBox := container.NewVBox()
+	for _, member := range artist.Members {
+		txt := canvas.NewText("  "+member, ColText)
+		txt.TextSize = 14
+		txt.TextStyle = fyne.TextStyle{Monospace: true}
+		membersVBox.Add(txt)
+	}
 
-	// Header
-	header := container.NewVBox(
-		container.NewHBox(backButton, layout.NewSpacer()),
+	// 5. CONCERTS + MAPS (Panneau Droit)
+	concertsTitle := canvas.NewText("> GPS_SATELLITE_LOG", ColHighlight)
+	concertsTitle.TextSize = 16
+	concertsTitle.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+
+	var concertsContent fyne.CanvasObject
+	if err != nil {
+		concertsContent = widget.NewLabel("Error loading data...")
+	} else if len(relation.DatesLocations) == 0 {
+		concertsContent = widget.NewLabel("No dates found.")
+	} else {
+		cardsContainer := container.NewVBox()
+
+		for location, dates := range relation.DatesLocations {
+			locName := toTitle(strings.ReplaceAll(strings.ReplaceAll(location, "-", ", "), "_", " "))
+
+			// --- CARTE GPS ---
+
+			// On utilise SearchIcon car WorldIcon n'existe pas
+			mapIcon := widget.NewIcon(theme.SearchIcon())
+
+			// Texte de statut
+			statusLbl := widget.NewLabel("SCANNING...")
+			statusLbl.Alignment = fyne.TextAlignCenter
+
+			// Bouton Map
+			btnMap := widget.NewButtonWithIcon("LOCATE", theme.SearchIcon(), func() {
+				u, _ := url.Parse("https://www.openstreetmap.org/search?query=" + url.QueryEscape(locName))
+				app.OpenURL(u)
+			})
+
+			// --- Lancement téléchargement asynchrone ---
+			go func(city string, icon *widget.Icon, status *widget.Label, btn *widget.Button) {
+				// Petit délai pour ne pas spammer
+				time.Sleep(300 * time.Millisecond)
+
+				// A. GPS (Nominatim)
+				latStr, lonStr, err := api.GetCoordinates(city)
+				if err != nil {
+					fyne.Do(func() { status.SetText("SIGNAL LOST") })
+					return
+				}
+
+				// B. Calcul Tuile OSM
+				lat, _ := strconv.ParseFloat(latStr, 64)
+				lon, _ := strconv.ParseFloat(lonStr, 64)
+				tileURL := api.GetOSMTileURL(lat, lon, 12)
+
+				// C. Téléchargement Image (AVEC USER-AGENT CORRIGÉ)
+				// On crée une requête personnalisée pour éviter le blocage "Access Blocked"
+				client := &http.Client{Timeout: 10 * time.Second}
+				req, _ := http.NewRequest("GET", tileURL, nil)
+				// L'User-Agent est obligatoire pour OpenStreetMap !
+				req.Header.Set("User-Agent", "GroupieTracker-StudentProject/1.0")
+
+				resp, errImg := client.Do(req)
+				if errImg == nil && resp.StatusCode == 200 {
+					data, _ := io.ReadAll(resp.Body)
+					resp.Body.Close()
+
+					res := fyne.NewStaticResource("map.png", data)
+
+					// D. Mise à jour UI sécurisée
+					fyne.Do(func() {
+						icon.SetResource(res)
+						status.SetText("")
+						status.Hide()
+
+						btn.SetText("GPS LOCK")
+						btn.OnTapped = func() {
+							u, _ := url.Parse(fmt.Sprintf("https://www.openstreetmap.org/?mlat=%s&mlon=%s#map=12/%s/%s", latStr, lonStr, latStr, lonStr))
+							app.OpenURL(u)
+						}
+					})
+				} else {
+					// En cas d'erreur de téléchargement de l'image
+					fyne.Do(func() { status.SetText("MAP DATA ERR") })
+				}
+			}(locName, mapIcon, statusLbl, btnMap)
+
+			// --- Correction Taille ---
+			// On applique la taille minimale au rectangle de fond (Background)
+			bgRect := canvas.NewRectangle(color.NRGBA{R: 40, G: 40, B: 50, A: 255})
+			bgRect.SetMinSize(fyne.NewSize(300, 150)) // C'est ici qu'on force la taille
+
+			mapStack := container.NewMax(
+				bgRect,
+				container.NewPadded(mapIcon),
+				container.NewCenter(statusLbl),
+			)
+
+			// Assemblage Ligne
+			infoBox := container.NewVBox(
+				canvas.NewText(":: "+locName, ColAccent),
+				mapStack,
+				widget.NewLabel(strings.Join(dates, " | ")),
+			)
+
+			cardRow := container.NewBorder(nil, nil, nil,
+				container.NewVBox(layout.NewSpacer(), btnMap, layout.NewSpacer()),
+				container.NewPadded(infoBox))
+
+			bgRow := canvas.NewRectangle(ColCard)
+			cardsContainer.Add(container.NewMax(bgRow, container.NewPadded(cardRow)))
+			cardsContainer.Add(widget.NewSeparator())
+		}
+		concertsContent = container.NewVScroll(cardsContainer)
+	}
+
+	// --- LAYOUT GLOBAL ---
+
+	avatar := loadDetailImage(artist.Image, 220, 220)
+	imgBorder := canvas.NewRectangle(color.Transparent)
+	imgBorder.StrokeColor = ColAccent
+	imgBorder.StrokeWidth = 2
+	avatarFramed := container.NewMax(imgBorder, avatar)
+
+	backButton := widget.NewButtonWithIcon("BACK", theme.NavigateBackIcon(), func() { onBack() })
+
+	leftContent := container.NewVBox(
+		container.NewPadded(avatarFramed),
+		widget.NewSeparator(),
 		title,
+		container.NewCenter(decoLine),
+		container.NewPadded(streamingBar),
 		widget.NewSeparator(),
+		container.NewPadded(statsGrid),
+		widget.NewSeparator(),
+		container.NewPadded(membersLabel),
+		container.NewPadded(membersVBox),
 	)
+	leftScroll := container.NewVScroll(leftContent)
 
-	// Layout Final
-	content := container.NewBorder(
-		header,
+	rightContent := container.NewBorder(
+		container.NewVBox(container.NewPadded(concertsTitle), widget.NewSeparator()),
 		nil, nil, nil,
-		split,
+		concertsContent,
 	)
+	rightBg := canvas.NewRectangle(color.NRGBA{R: 20, G: 15, B: 30, A: 255})
+	rightPanel := container.NewMax(rightBg, rightContent)
 
-	// Fond général
-	background := canvas.NewRectangle(color.NRGBA{R: 25, G: 25, B: 25, A: 255})
+	split := container.NewHSplit(leftScroll, rightPanel)
+	split.Offset = 0.40
 
-	return container.NewMax(background, content)
+	header := container.NewVBox(container.NewHBox(backButton, layout.NewSpacer()), widget.NewSeparator())
+	mainBg := canvas.NewRectangle(ColBackground)
+
+	return container.NewMax(mainBg, container.NewBorder(header, nil, nil, nil, split))
 }

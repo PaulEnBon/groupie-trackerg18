@@ -17,15 +17,18 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
 // loadImageFromURL fetches an image from a URL and returns a CanvasObject.
-// Falls back to a placeholder rectangle if the image cannot be loaded.
 func loadImageFromURL(url string, w, h float32) fyne.CanvasObject {
+	// Placeholder couleur sombre
+	placeholderColor := color.NRGBA{R: 30, G: 25, B: 45, A: 255}
+
 	resp, err := http.Get(url)
 	if err != nil || resp.StatusCode != http.StatusOK {
-		ph := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+		ph := canvas.NewRectangle(placeholderColor)
 		ph.SetMinSize(fyne.NewSize(w, h))
 		return ph
 	}
@@ -33,7 +36,7 @@ func loadImageFromURL(url string, w, h float32) fyne.CanvasObject {
 
 	imgDecoded, _, err := image.Decode(resp.Body)
 	if err != nil {
-		ph := canvas.NewRectangle(color.NRGBA{R: 60, G: 60, B: 60, A: 255})
+		ph := canvas.NewRectangle(placeholderColor)
 		ph.SetMinSize(fyne.NewSize(w, h))
 		return ph
 	}
@@ -45,140 +48,169 @@ func loadImageFromURL(url string, w, h float32) fyne.CanvasObject {
 }
 
 func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
-	// Container principal qui va changer entre la liste et les détails
+	// --- PALETTE DE COULEURS (Locales pour éviter les conflits) ---
+	colBackground := color.NRGBA{R: 15, G: 10, B: 25, A: 255} // Violet très sombre
+	colCard := color.NRGBA{R: 30, G: 25, B: 45, A: 255}       // Violet/Gris
+	colAccent := color.NRGBA{R: 0, G: 255, B: 255, A: 255}    // Cyan Fluo
+	colHighlight := color.NRGBA{R: 255, G: 0, B: 128, A: 255} // Rose Fluo
+	colText := color.NRGBA{R: 240, G: 240, B: 255, A: 255}    // Blanc bleuté
+
+	// Container principal (Stack pour gérer la navigation Liste <-> Détail)
 	mainContainer := container.NewStack()
 
-	// Container pour les cartes d'artistes
+	// Container des cartes (VBox dans un Scroll)
 	cardsContainer := container.NewVBox()
 
-	// Fonction pour afficher les détails d'un artiste
+	// Label Résumé (Style Terminal)
+	summaryLabel := canvas.NewText("", colHighlight)
+	summaryLabel.TextSize = 12
+	summaryLabel.TextStyle = fyne.TextStyle{Monospace: true}
+	summaryLabel.Alignment = fyne.TextAlignTrailing
+
+	// --- LOGIQUE DE NAVIGATION ---
 	showDetails := func(artist models.Artist) {
 		detailView := ArtistDetail(app, artist, func() {
-			// Retour à la liste
-			mainContainer.Objects = mainContainer.Objects[:1]
-			mainContainer.Refresh()
+			// Retour à la liste : on enlève la vue détail
+			if len(mainContainer.Objects) > 1 {
+				mainContainer.Objects = mainContainer.Objects[:1]
+				mainContainer.Refresh()
+			}
 		})
 		mainContainer.Add(detailView)
-		mainContainer.Refresh()
 	}
 
-	// Label de résumé du nombre d'items visibles
-	summaryLabel := widget.NewLabel("")
-
-	// Fonction pour créer les cartes d'artistes filtrées
+	// --- MISE A JOUR DES CARTES ---
 	updateCards := func(searchText string) {
 		cardsContainer.Objects = nil
 		visible := 0
 
 		for _, artist := range artists {
-			currentArtist := artist // Capturer la valeur pour la closure
 			// Filtre de recherche
 			if searchText != "" {
 				searchLower := strings.ToLower(searchText)
-				nameMatch := strings.Contains(strings.ToLower(artist.Name), searchLower)
-				membersMatch := false
-				for _, member := range artist.Members {
-					if strings.Contains(strings.ToLower(member), searchLower) {
-						membersMatch = true
+				match := strings.Contains(strings.ToLower(artist.Name), searchLower)
+				// Recherche aussi dans les membres
+				for _, m := range artist.Members {
+					if strings.Contains(strings.ToLower(m), searchLower) {
+						match = true
 						break
 					}
 				}
-
-				if !nameMatch && !membersMatch {
+				// Recherche par date de création (ex: "1998")
+				if strings.Contains(strconv.Itoa(artist.CreationDate), searchLower) {
+					match = true
+				}
+				if !match {
 					continue
 				}
 			}
 
-			// Image de profil
-			avatar := loadImageFromURL(artist.Image, 80, 80)
+			// Capture pour la closure du bouton
+			currentArtist := artist
 
-			// Création de la carte d'artiste (texte clair sur fond sombre)
-			name := canvas.NewText(artist.Name, color.White)
-			name.TextSize = 18
-			name.TextStyle = fyne.TextStyle{Bold: true}
-			name.Alignment = fyne.TextAlignCenter
+			// -- DESIGN DE LA CARTE ARTISTE --
 
-			year := canvas.NewText(
-				"Année de création: "+strconv.Itoa(artist.CreationDate),
-				color.NRGBA{R: 235, G: 235, B: 235, A: 255},
-			)
-			year.Alignment = fyne.TextAlignCenter
+			// 1. Avatar avec bordure Rose
+			avatarImg := loadImageFromURL(artist.Image, 70, 70)
+			avatarBorder := canvas.NewRectangle(color.Transparent)
+			avatarBorder.StrokeColor = colHighlight
+			avatarBorder.StrokeWidth = 1
+			avatarComp := container.NewMax(avatarBorder, avatarImg)
 
-			members := canvas.NewText(
-				"Membres: "+strings.Join(artist.Members, ", "),
-				color.NRGBA{R: 220, G: 220, B: 220, A: 255},
-			)
-			members.TextSize = 12
-			members.Alignment = fyne.TextAlignCenter
+			// 2. Infos (Nom + Année)
+			nameTxt := canvas.NewText(strings.ToUpper(artist.Name), colAccent)
+			nameTxt.TextSize = 18
+			nameTxt.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 
-			firstAlbum := canvas.NewText(
-				"Premier album: "+artist.FirstAlbum,
-				color.NRGBA{R: 220, G: 220, B: 220, A: 255},
-			)
-			firstAlbum.TextSize = 12
-			firstAlbum.Alignment = fyne.TextAlignCenter
+			creationTxt := canvas.NewText(fmt.Sprintf("EST. %d", artist.CreationDate), colText)
+			creationTxt.TextSize = 12
+			creationTxt.TextStyle = fyne.TextStyle{Monospace: true}
 
-			// Bouton pour voir les détails
-			detailsButton := widget.NewButton("👁️ Voir les détails", func() {
+			infoBox := container.NewVBox(nameTxt, creationTxt)
+
+			// 3. Bouton "VIEW" (CORRECTION : Utilisation de SearchIcon qui est standard)
+			viewBtn := widget.NewButtonWithIcon("ACCESS", theme.SearchIcon(), func() {
 				showDetails(currentArtist)
 			})
-			buttonRow := container.NewHBox(layout.NewSpacer(), detailsButton, layout.NewSpacer())
+			viewBtn.Importance = widget.HighImportance
 
-			// Carte avec fond et padding, avatar à gauche
-			cardBg := canvas.NewRectangle(color.NRGBA{R: 32, G: 32, B: 32, A: 255})
-			cardBg.SetMinSize(fyne.NewSize(0, 150))
-			textCol := container.NewVBox(
-				name,
-				widget.NewSeparator(),
-				year,
-				members,
-				firstAlbum,
-				buttonRow,
+			// Assemblage ligne
+			rowContent := container.NewBorder(
+				nil, nil,
+				container.NewPadded(avatarComp), // Gauche
+				viewBtn,                         // Droite
+				container.NewVBox(layout.NewSpacer(), infoBox, layout.NewSpacer()), // Centre
 			)
-			cardContent := container.NewHBox(
-				container.NewPadded(container.NewCenter(avatar)),
-				container.NewPadded(textCol),
-			)
-			card := container.NewMax(cardBg, cardContent)
 
-			cardsContainer.Add(card)
-			cardsContainer.Add(widget.NewSeparator())
+			// Fond de la carte
+			cardBg := canvas.NewRectangle(colCard)
+
+			// Bordure Néon en bas
+			neonLine := canvas.NewRectangle(colAccent)
+			neonLine.SetMinSize(fyne.NewSize(0, 1))
+
+			// Carte finale
+			cardFinal := container.NewVBox(
+				container.NewMax(
+					cardBg,
+					container.NewPadded(rowContent),
+				),
+				neonLine, // Ligne séparatrice néon
+			)
+
+			cardsContainer.Add(cardFinal)
+			cardsContainer.Add(layout.NewSpacer()) // Petit espace
 			visible++
 		}
 
-		summaryLabel.SetText(fmt.Sprintf("%d groupes visibles", visible))
+		// Mise à jour du compteur
+		summaryLabel.Text = fmt.Sprintf("> STATUS: %d UNITS FOUND", visible)
+		summaryLabel.Refresh()
+
 		cardsContainer.Refresh()
 	}
 
-	// Création de la barre de recherche
+	// --- BARRE DE RECHERCHE & HEADER ---
+
+	// Titre de l'app
+	appTitle := canvas.NewText("GROUPIE_TRACKER // DATABASE", colAccent)
+	appTitle.TextSize = 20
+	appTitle.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
+	appTitle.Alignment = fyne.TextAlignCenter
+
+	// Champ de recherche
 	searchEntry := widget.NewEntry()
-	searchEntry.SetPlaceHolder("🔍 Rechercher un groupe ou un membre...")
+	searchEntry.SetPlaceHolder("SEARCH_QUERY...")
 	searchEntry.OnChanged = func(text string) {
 		updateCards(text)
 	}
 
-	// Initialiser avec tous les artistes
+	// Conteneur Header (Titre + Recherche)
+	headerBox := container.NewVBox(
+		container.NewPadded(appTitle),
+		container.NewPadded(searchEntry),
+		container.NewPadded(summaryLabel),
+		widget.NewSeparator(),
+	)
+
+	// Init
 	updateCards("")
 
-	// Container principal avec la barre de recherche en haut
-	scrollContent := container.NewVScroll(cardsContainer)
-	// Fond opaque pour la liste
-	listBackground := canvas.NewRectangle(color.NRGBA{R: 24, G: 24, B: 24, A: 240})
+	// Scroll View
+	scrollContent := container.NewVScroll(container.NewPadded(cardsContainer))
+
+	// Layout Liste complète
 	listViewInner := container.NewBorder(
-		container.NewVBox(
-			widget.NewLabel("Groupie Tracker - Recherche de Groupes de Musique"),
-			searchEntry,
-			summaryLabel,
-			widget.NewSeparator(),
-		),
-		nil,
-		nil,
-		nil,
+		headerBox,
+		nil, nil, nil,
 		scrollContent,
 	)
-	listView := container.NewMax(listBackground, listViewInner)
 
-	// Ajouter la vue de liste au container principal
+	// Fond global
+	bgRect := canvas.NewRectangle(colBackground)
+
+	listView := container.NewMax(bgRect, listViewInner)
+
 	mainContainer.Add(listView)
 
 	return mainContainer
