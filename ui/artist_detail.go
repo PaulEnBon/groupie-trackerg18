@@ -30,27 +30,27 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 		return strings.Join(words, " ")
 	}
 
-	// Titre avec le nom de l'artiste (texte clair sur fond sombre)
+	// Titre avec le nom de l'artiste
 	title := canvas.NewText(artist.Name, color.White)
-	title.TextSize = 24
+	title.TextSize = 32
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Alignment = fyne.TextAlignCenter
 
 	// Informations générales
 	infoText := fmt.Sprintf(
-		"📅 Année de création: %d\n"+
-			"🎵 Premier album: %s\n"+
+		"📅 Année de création: %d\n\n"+
+			"🎵 Premier album: %s\n\n"+
 			"👥 Nombre de membres: %d",
 		artist.CreationDate,
 		artist.FirstAlbum,
 		len(artist.Members),
 	)
 	info := canvas.NewText(infoText, color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-	info.TextSize = 14
+	info.TextSize = 18
 
 	// Liste des membres
 	membersTitle := canvas.NewText("Membres du groupe", color.White)
-	membersTitle.TextSize = 16
+	membersTitle.TextSize = 20
 	membersTitle.TextStyle = fyne.TextStyle{Bold: true}
 
 	membersList := widget.NewList(
@@ -61,28 +61,29 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			ct := o.(*canvas.Text)
 			ct.Text = "• " + artist.Members[i]
+			ct.TextSize = 16
 			ct.Color = color.NRGBA{R: 235, G: 235, B: 235, A: 255}
 			ct.Refresh()
 		},
 	)
-	membersList.Resize(fyne.NewSize(400, float32(len(artist.Members)*40))) // Resize to fixed size
+	membersList.Resize(fyne.NewSize(0, float32(len(artist.Members)*50)))
 
 	// Récupérer les relations (concerts)
 	relation, err := api.FetchRelation(artist.ID)
 
 	// Section des concerts
 	concertsTitle := canvas.NewText("🌍 Concerts et Tournées", color.White)
-	concertsTitle.TextSize = 18
+	concertsTitle.TextSize = 20
 	concertsTitle.TextStyle = fyne.TextStyle{Bold: true}
 
 	var concertsContent fyne.CanvasObject
 	if err != nil {
 		msg := canvas.NewText("❌ Impossible de charger les informations de concerts", color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-		msg.TextSize = 14
+		msg.TextSize = 16
 		concertsContent = msg
 	} else if len(relation.DatesLocations) == 0 {
 		msg := canvas.NewText("Aucun concert programmé", color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-		msg.TextSize = 14
+		msg.TextSize = 16
 		concertsContent = msg
 	} else {
 		concertsList := container.NewVBox()
@@ -94,7 +95,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 			locationFormatted = toTitle(locationFormatted)
 
 			locationLabel := canvas.NewText("📍 "+locationFormatted, color.RGBA{R: 120, G: 220, B: 255, A: 255})
-			locationLabel.TextSize = 14
+			locationLabel.TextSize = 16
 			locationLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 			concertsList.Add(locationLabel)
@@ -102,7 +103,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 			// Ajouter les dates
 			for _, date := range dates {
 				dateLabel := canvas.NewText("   🗓️  "+date, color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-				dateLabel.TextSize = 12
+				dateLabel.TextSize = 14
 				concertsList.Add(dateLabel)
 			}
 
@@ -117,7 +118,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 
 	// Statistiques
 	statsTitle := canvas.NewText("📊 Statistiques", color.White)
-	statsTitle.TextSize = 16
+	statsTitle.TextSize = 20
 	statsTitle.TextStyle = fyne.TextStyle{Bold: true}
 
 	concertCount := 0
@@ -130,54 +131,91 @@ func ArtistDetail(app fyne.App, artist models.Artist, onBack func()) fyne.Canvas
 	}
 
 	statsText := fmt.Sprintf(
-		"🎤 Total de concerts: %d\n"+
-			"🌍 Pays/Villes visités: %d\n"+
+		"🎤 Total de concerts: %d\n\n"+
+			"🌍 Pays/Villes visités: %d\n\n"+
 			"🎸 Années actives: %d ans",
 		concertCount,
 		locationCount,
 		2026-artist.CreationDate,
 	)
 	stats := canvas.NewText(statsText, color.NRGBA{R: 235, G: 235, B: 235, A: 255})
-	stats.TextSize = 14
+	stats.TextSize = 18
 
 	// Bouton retour
 	backButton := widget.NewButton("⬅ Retour à la liste", func() {
 		onBack()
 	})
 
-	// Layout principal
-	// Panneaux opaques et paddés pour la lisibilité
-	leftPanel := container.NewVBox(
+	// ========== PANNEAU GAUCHE - INFOS GÉNÉRALES ==========
+	infoBox := container.NewVBox(
 		title,
 		widget.NewSeparator(),
 		info,
-		widget.NewSeparator(),
+	)
+	infoBg := canvas.NewRectangle(color.NRGBA{R: 32, G: 32, B: 32, A: 255})
+	infoBg.SetMinSize(fyne.NewSize(300, 250))
+	infoPadded := container.NewVBox(
+		container.NewCenter(container.NewMax(infoBg, container.NewPadded(infoBox))),
+	)
+
+	// ========== PANNEAU GAUCHE - MEMBRES ==========
+	membersBox := container.NewVBox(
 		membersTitle,
-		membersList,
 		widget.NewSeparator(),
+		membersList,
+	)
+	membersBg := canvas.NewRectangle(color.NRGBA{R: 32, G: 32, B: 32, A: 255})
+	membersBg.SetMinSize(fyne.NewSize(300, 400))
+	membersPadded := container.NewVBox(
+		container.NewCenter(container.NewMax(membersBg, container.NewPadded(membersBox))),
+	)
+
+	// ========== PANNEAU GAUCHE - STATS ==========
+	statsBox := container.NewVBox(
 		statsTitle,
+		widget.NewSeparator(),
 		stats,
 	)
-	leftBg := canvas.NewRectangle(color.NRGBA{R: 28, G: 28, B: 28, A: 255})
-	leftScroll := container.NewVScroll(container.NewMax(leftBg, container.NewPadded(leftPanel)))
+	statsBg := canvas.NewRectangle(color.NRGBA{R: 32, G: 32, B: 32, A: 255})
+	statsBg.SetMinSize(fyne.NewSize(300, 250))
+	statsPadded := container.NewVBox(
+		container.NewCenter(container.NewMax(statsBg, container.NewPadded(statsBox))),
+	)
 
+	// ========== PANNEAU GAUCHE COMPLET ==========
+	leftPanelContent := container.NewVBox(
+		infoPadded,
+		widget.NewSeparator(),
+		membersPadded,
+		widget.NewSeparator(),
+		statsPadded,
+	)
+	leftScroll := container.NewVScroll(leftPanelContent)
+
+	// ========== PANNEAU DROIT - CONCERTS ==========
 	rightPanel := container.NewVBox(
 		concertsTitle,
 		widget.NewSeparator(),
 		concertsContent,
 	)
-	rightBg := canvas.NewRectangle(color.NRGBA{R: 28, G: 28, B: 28, A: 255})
-	rightScroll := container.NewVScroll(container.NewMax(rightBg, container.NewPadded(rightPanel)))
+	rightBg := canvas.NewRectangle(color.NRGBA{R: 32, G: 32, B: 32, A: 255})
+	rightBg.SetMinSize(fyne.NewSize(400, 900))
+	rightPadded := container.NewMax(rightBg, container.NewPadded(rightPanel))
+	rightScroll := container.NewVScroll(rightPadded)
+	rightScroll.SetMinSize(fyne.NewSize(400, 900))
 
 	split := container.NewHSplit(leftScroll, rightScroll)
-	split.Offset = 0.4 // 40% gauche, 60% droite
+	split.Offset = 0.35 // 35% gauche, 65% droite
+
+	splitContainer := container.NewVBox(split)
+	splitContainer.Resize(fyne.NewSize(0, 950))
 
 	content := container.NewBorder(
 		container.NewVBox(backButton, widget.NewSeparator()),
 		nil,
 		nil,
 		nil,
-		split,
+		splitContainer,
 	)
 
 	// Fond opaque pour éviter la transparence sur la liste
