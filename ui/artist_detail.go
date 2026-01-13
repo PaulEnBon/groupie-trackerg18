@@ -68,10 +68,11 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 	youtubeUrl, _ := url.Parse("https://www.youtube.com/results?search_query=" + encodedName)
 	deezerUrl, _ := url.Parse("https://www.deezer.com/search/" + encodedName)
 
+	// MODIFICATION ICI : Boutons textes simples au lieu des icônes
 	streamingBar := container.NewGridWithColumns(3,
-		widget.NewButtonWithIcon("", theme.MediaPlayIcon(), func() { app.OpenURL(spotifyUrl) }),
-		widget.NewButtonWithIcon("", theme.MediaVideoIcon(), func() { app.OpenURL(youtubeUrl) }),
-		widget.NewButtonWithIcon("", theme.VolumeUpIcon(), func() { app.OpenURL(deezerUrl) }),
+		widget.NewButton("SPOTIFY", func() { app.OpenURL(spotifyUrl) }),
+		widget.NewButton("YOUTUBE", func() { app.OpenURL(youtubeUrl) }),
+		widget.NewButton("DEEZER", func() { app.OpenURL(deezerUrl) }),
 	)
 
 	// --- STATS ---
@@ -110,7 +111,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 			statusLbl := widget.NewLabel("SCANNING...")
 			statusLbl.Alignment = fyne.TextAlignCenter
 
-			btnMap := widget.NewButtonWithIcon("LOCATE", theme.SearchIcon(), func() {
+			btnMap := widget.NewButtonWithIcon("LOCALISATION EN COURS...", theme.SearchIcon(), func() {
 				u, _ := url.Parse("https://www.openstreetmap.org/search?query=" + url.QueryEscape(locName))
 				app.OpenURL(u)
 			})
@@ -151,9 +152,8 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 			}(locName, mapIcon, statusLbl, btnMap)
 
 			// --- MODIFICATION TAILLE CARTE ---
-			// C'est ici qu'on change la taille ! (600x350 au lieu de 300x150)
 			bgRect := canvas.NewRectangle(color.NRGBA{R: 40, G: 40, B: 50, A: 255})
-			bgRect.SetMinSize(fyne.NewSize(600, 350)) // <--- TAILLE AGRANDIE
+			bgRect.SetMinSize(fyne.NewSize(600, 350))
 
 			mapStack := container.NewMax(bgRect, container.NewPadded(mapIcon), container.NewCenter(statusLbl))
 
@@ -205,7 +205,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 		container.NewVScroll(left),
 		container.NewMax(rightBg, right),
 	)
-	split.Offset = 0.35 // Ajusté un peu pour laisser plus de place aux cartes à droite
+	split.Offset = 0.35
 
 	mainBg := canvas.NewRectangle(ColBackground)
 
