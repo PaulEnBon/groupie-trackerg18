@@ -57,3 +57,31 @@ func FetchLocations(id int) (*models.Location, error) {
 
 	return &location, nil
 }
+
+// --- NOUVEAU : Récupère toutes les localisations pour le filtrage ---
+func FetchAllLocationsMap() (map[int][]string, error) {
+	resp, err := http.Get(baseURL + "/locations")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Structure temporaire pour décoder l'index des locations
+	var result struct {
+		Index []struct {
+			ID        int      `json:"id"`
+			Locations []string `json:"locations"`
+		} `json:"index"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	// On convertit en Map pour un accès rapide (ID -> Liste de lieux)
+	locMap := make(map[int][]string)
+	for _, item := range result.Index {
+		locMap[item.ID] = item.Locations
+	}
+	return locMap, nil
+}

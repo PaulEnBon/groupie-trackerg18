@@ -38,11 +38,11 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 	var favBtn *widget.Button
 	updateFavBtn := func(state bool) {
 		if state {
-			favBtn.SetText("FAVORITED")
+			favBtn.SetText("FAVORIS")
 			favBtn.SetIcon(theme.ConfirmIcon())
 			favBtn.Importance = widget.HighImportance
 		} else {
-			favBtn.SetText("ADD TO FAV")
+			favBtn.SetText("Ajouter aux favoris")
 			favBtn.SetIcon(theme.ContentAddIcon())
 			favBtn.Importance = widget.MediumImportance
 		}
@@ -57,7 +57,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 
 	// Header container
 	headerTop := container.NewBorder(nil, nil,
-		widget.NewButtonWithIcon("BACK", theme.NavigateBackIcon(), onBack),
+		widget.NewButtonWithIcon("RETOUR", theme.NavigateBackIcon(), onBack),
 		favBtn,
 		nil,
 	)
@@ -84,10 +84,10 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 	}
 
 	statsGrid := container.NewGridWithColumns(2,
-		createCyberCard("Since", fmt.Sprintf("%d", artist.CreationDate), theme.HistoryIcon()),
-		createCyberCard("Debut", artist.FirstAlbum, theme.MediaMusicIcon()),
-		createCyberCard("Team", fmt.Sprintf("%d", len(artist.Members)), theme.AccountIcon()),
-		createCyberCard("Shows", fmt.Sprintf("%d", concertCount), theme.InfoIcon()),
+		createCyberCard("Depuis", fmt.Sprintf("%d", artist.CreationDate), theme.HistoryIcon()),
+		createCyberCard("Début", artist.FirstAlbum, theme.MediaMusicIcon()),
+		createCyberCard("Équipe", fmt.Sprintf("%d", len(artist.Members)), theme.AccountIcon()),
+		createCyberCard("Concerts", fmt.Sprintf("%d", concertCount), theme.InfoIcon()),
 	)
 
 	// --- LISTE MEMBRES ---
@@ -97,7 +97,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 	}
 
 	// --- CONCERTS + MAPS ---
-	concertsTitle := canvas.NewText("> SATELLITE_LOG", ColHighlight)
+	concertsTitle := canvas.NewText("> Vue Satellite", ColHighlight)
 	concertsTitle.TextSize = 16
 	concertsTitle.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 
@@ -141,7 +141,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 					fyne.Do(func() {
 						icon.SetResource(res)
 						status.Hide()
-						btn.SetText("GPS LOCK")
+						btn.SetText("PLAN")
 						btn.OnTapped = func() {
 							u, _ := url.Parse(fmt.Sprintf("https://www.openstreetmap.org/?mlat=%s&mlon=%s", latStr, lonStr))
 							app.OpenURL(u)
