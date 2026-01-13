@@ -68,7 +68,6 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 	youtubeUrl, _ := url.Parse("https://www.youtube.com/results?search_query=" + encodedName)
 	deezerUrl, _ := url.Parse("https://www.deezer.com/search/" + encodedName)
 
-	// MODIFICATION ICI : Boutons textes simples au lieu des icônes
 	streamingBar := container.NewGridWithColumns(3,
 		widget.NewButton("SPOTIFY", func() { app.OpenURL(spotifyUrl) }),
 		widget.NewButton("YOUTUBE", func() { app.OpenURL(youtubeUrl) }),
@@ -116,12 +115,18 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 				app.OpenURL(u)
 			})
 
-			// Goroutine GPS & Tuiles
-			go func(city string, icon *widget.Icon, status *widget.Label, btn *widget.Button) {
+			// --- PIN (POINT ROUGE) ---
+			pin := canvas.NewCircle(color.NRGBA{R: 255, G: 0, B: 50, A: 255})
+			pin.Hide()
+			// Astuce Fyne : GridWrap pour forcer la taille du point rouge à 15x15
+			pinWrapper := container.NewGridWrap(fyne.NewSize(15, 15), pin)
+
+			// Goroutine GPS
+			go func(city string, icon *widget.Icon, status *widget.Label, btn *widget.Button, p *canvas.Circle) {
 				time.Sleep(200 * time.Millisecond)
 				latStr, lonStr, err := api.GetCoordinates(city)
 				if err != nil {
-					fyne.Do(func() { status.SetText("SIGNAL LOST") })
+					fyne.Do(func() { status.SetText("LOCALISATION IMPOSSIBLE") })
 					return
 				}
 
@@ -142,6 +147,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 					fyne.Do(func() {
 						icon.SetResource(res)
 						status.Hide()
+						p.Show() // Affiche le point rouge
 						btn.SetText("PLAN")
 						btn.OnTapped = func() {
 							u, _ := url.Parse(fmt.Sprintf("https://www.openstreetmap.org/?mlat=%s&mlon=%s", latStr, lonStr))
@@ -149,17 +155,25 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 						}
 					})
 				}
-			}(locName, mapIcon, statusLbl, btnMap)
+			}(locName, mapIcon, statusLbl, btnMap, pin)
 
-			// --- MODIFICATION TAILLE CARTE ---
+			// --- LAYOUT CARTE ---
 			bgRect := canvas.NewRectangle(color.NRGBA{R: 40, G: 40, B: 50, A: 255})
-			bgRect.SetMinSize(fyne.NewSize(600, 350))
 
-			mapStack := container.NewMax(bgRect, container.NewPadded(mapIcon), container.NewCenter(statusLbl))
+			// Empilement : Fond -> Carte -> Pin (Centré) -> Texte
+			mapStack := container.NewMax(
+				bgRect,
+				container.NewPadded(mapIcon),
+				container.NewCenter(pinWrapper), // Pin centré et dimensionné
+				container.NewCenter(statusLbl),
+			)
+
+			// Astuce Fyne : GridWrap pour forcer la taille de toute la carte à 600x350
+			mapContainer := container.NewGridWrap(fyne.NewSize(600, 350), mapStack)
 
 			infoBox := container.NewVBox(
 				canvas.NewText(":: "+locName, ColAccent),
-				mapStack,
+				mapContainer,
 				widget.NewLabel(strings.Join(dates, " | ")),
 			)
 
@@ -173,7 +187,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 			cardsContainer.Add(widget.NewSeparator())
 		}
 	} else {
-		cardsContainer.Add(widget.NewLabel("No Data Available"))
+		cardsContainer.Add(widget.NewLabel("Aucune donnée disponible"))
 	}
 
 	// --- LAYOUT GLOBAL ---
@@ -232,16 +246,18 @@ func createCyberCard(title, value string, icon fyne.Resource) fyne.CanvasObject 
 
 	content := container.NewVBox(container.NewCenter(iconW), valText, lblText)
 	bg := canvas.NewRectangle(ColCard)
-	border := canvas.NewRectangle(ColHighlight)
-	border.SetMinSize(fyne.NewSize(0, 2))
 
-	return container.NewBorder(nil, border, nil, nil, container.NewMax(bg, container.NewPadded(content)))
+	// Utilisation d'un rectangle simple pour le décor
+	return container.NewMax(bg, container.NewPadded(content))
 }
 
 func loadDetailImage(url string, w, h float32) fyne.CanvasObject {
+	// Placeholder (Rectangle gris)
 	rect := canvas.NewRectangle(ColCard)
-	rect.SetMinSize(fyne.NewSize(w, h))
-	c := container.NewMax(rect)
+	// Wrapper pour forcer la taille du placeholder
+	placeholderWrapper := container.NewGridWrap(fyne.NewSize(w, h), rect)
+
+	c := container.NewStack(placeholderWrapper)
 
 	go func() {
 		resp, err := http.Get(url)
