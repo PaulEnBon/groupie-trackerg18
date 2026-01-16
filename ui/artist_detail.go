@@ -34,15 +34,15 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 	title.Alignment = fyne.TextAlignCenter
 
-	// --- BOUTON FAVORIS ---
+	// --- BOUTON FAVORIS (Traduit) ---
 	var favBtn *widget.Button
 	updateFavBtn := func(state bool) {
 		if state {
-			favBtn.SetText("FAVORIS")
+			favBtn.SetText(TR("fav_yes"))
 			favBtn.SetIcon(theme.ConfirmIcon())
 			favBtn.Importance = widget.HighImportance
 		} else {
-			favBtn.SetText("Ajouter aux favoris")
+			favBtn.SetText(TR("fav_add"))
 			favBtn.SetIcon(theme.ContentAddIcon())
 			favBtn.Importance = widget.MediumImportance
 		}
@@ -57,37 +57,37 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 
 	// Header container
 	headerTop := container.NewBorder(nil, nil,
-		widget.NewButtonWithIcon("RETOUR", theme.NavigateBackIcon(), onBack),
+		widget.NewButtonWithIcon(TR("back_btn"), theme.NavigateBackIcon(), onBack),
 		favBtn,
 		nil,
 	)
 
-	// --- BARRE DE STREAMING (Affichée seulement si l'utilisateur fournit des liens) ---
-	var streamingBar fyne.CanvasObject
+	// --- BARRE DE STREAMING + WIKIPEDIA (Bonus) ---
+	buttons := make([]fyne.CanvasObject, 0)
 
-	// Déterminer si on doit afficher la barre de streaming
-	hasStreamingLinks := artist.SpotifyLink != "" || artist.YoutubeLink != "" || artist.DeezerLink != ""
+	// Bonus : Bouton Wikipedia
+	wikiUrl, _ := url.Parse("https://www.wikipedia.org/w/index.php?search=" + url.QueryEscape(artist.Name))
+	btnWiki := widget.NewButtonWithIcon(TR("wiki_btn"), theme.SearchIcon(), func() {
+		app.OpenURL(wikiUrl)
+	})
+	buttons = append(buttons, btnWiki)
 
-	if hasStreamingLinks {
-		buttons := make([]fyne.CanvasObject, 0, 3)
-		if artist.SpotifyLink != "" {
-			spotifyUrl, _ := url.Parse(artist.SpotifyLink)
-			buttons = append(buttons, widget.NewButton("SPOTIFY", func() { app.OpenURL(spotifyUrl) }))
-		}
-		if artist.YoutubeLink != "" {
-			youtubeUrl, _ := url.Parse(artist.YoutubeLink)
-			buttons = append(buttons, widget.NewButton("YOUTUBE", func() { app.OpenURL(youtubeUrl) }))
-		}
-		if artist.DeezerLink != "" {
-			deezerUrl, _ := url.Parse(artist.DeezerLink)
-			buttons = append(buttons, widget.NewButton("DEEZER", func() { app.OpenURL(deezerUrl) }))
-		}
-		streamingBar = container.NewGridWithColumns(len(buttons), buttons...)
-	} else {
-		streamingBar = container.NewVBox() // Conteneur vide si pas de liens
+	if artist.SpotifyLink != "" {
+		spotifyUrl, _ := url.Parse(artist.SpotifyLink)
+		buttons = append(buttons, widget.NewButton("SPOTIFY", func() { app.OpenURL(spotifyUrl) }))
+	}
+	if artist.YoutubeLink != "" {
+		youtubeUrl, _ := url.Parse(artist.YoutubeLink)
+		buttons = append(buttons, widget.NewButton("YOUTUBE", func() { app.OpenURL(youtubeUrl) }))
+	}
+	if artist.DeezerLink != "" {
+		deezerUrl, _ := url.Parse(artist.DeezerLink)
+		buttons = append(buttons, widget.NewButton("DEEZER", func() { app.OpenURL(deezerUrl) }))
 	}
 
-	// --- STATS ---
+	streamingBar := container.NewGridWithColumns(len(buttons), buttons...)
+
+	// --- STATS (Traduit) ---
 	relation, err := api.FetchRelation(artist.ID)
 	concertCount := 0
 	if err == nil && relation != nil {
@@ -97,10 +97,10 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 	}
 
 	statsGrid := container.NewGridWithColumns(2,
-		createCyberCard("Depuis", fmt.Sprintf("%d", artist.CreationDate), theme.HistoryIcon()),
-		createCyberCard("Début", artist.FirstAlbum, theme.MediaMusicIcon()),
-		createCyberCard("Équipe", fmt.Sprintf("%d", len(artist.Members)), theme.AccountIcon()),
-		createCyberCard("Concerts", fmt.Sprintf("%d", concertCount), theme.InfoIcon()),
+		createCyberCard(TR("since"), fmt.Sprintf("%d", artist.CreationDate), theme.HistoryIcon()),
+		createCyberCard(TR("start"), artist.FirstAlbum, theme.MediaMusicIcon()),
+		createCyberCard(TR("team"), fmt.Sprintf("%d", len(artist.Members)), theme.AccountIcon()),
+		createCyberCard(TR("concerts_cnt"), fmt.Sprintf("%d", concertCount), theme.InfoIcon()),
 	)
 
 	// --- LISTE MEMBRES ---
@@ -109,21 +109,24 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 		membersVBox.Add(canvas.NewText(" "+m, ColText))
 	}
 
-	// --- CONCERTS + MAPS ---
-	concertsTitle := canvas.NewText("> Vue Satellite", ColHighlight)
+	// --- CONCERTS + MAPS (Traduit + Fix OSM) ---
+	concertsTitle := canvas.NewText(TR("sat_view"), ColHighlight)
 	concertsTitle.TextSize = 16
 	concertsTitle.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 
 	cardsContainer := container.NewVBox()
 	if err == nil && len(relation.DatesLocations) > 0 {
+
+		requestIndex := 0
+
 		for location, dates := range relation.DatesLocations {
 			locName := toTitle(strings.ReplaceAll(strings.ReplaceAll(location, "-", ", "), "_", " "))
 
 			mapIcon := widget.NewIcon(theme.SearchIcon())
-			statusLbl := widget.NewLabel("SCANNING...")
+			statusLbl := widget.NewLabel(TR("scanning"))
 			statusLbl.Alignment = fyne.TextAlignCenter
 
-			btnMap := widget.NewButtonWithIcon("LOCALISATION EN COURS...", theme.SearchIcon(), func() {
+			btnMap := widget.NewButtonWithIcon(TR("loc_proc"), theme.SearchIcon(), func() {
 				u, _ := url.Parse("https://www.openstreetmap.org/search?query=" + url.QueryEscape(locName))
 				app.OpenURL(u)
 			})
@@ -131,15 +134,16 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 			// --- PIN (POINT ROUGE) ---
 			pin := canvas.NewCircle(color.NRGBA{R: 255, G: 0, B: 50, A: 255})
 			pin.Hide()
-			// Astuce Fyne : GridWrap pour forcer la taille du point rouge à 15x15
 			pinWrapper := container.NewGridWrap(fyne.NewSize(15, 15), pin)
 
-			// Goroutine GPS
-			go func(city string, icon *widget.Icon, status *widget.Label, btn *widget.Button, p *canvas.Circle) {
-				time.Sleep(200 * time.Millisecond)
+			// Goroutine GPS (Fix anti-spam OSM)
+			go func(city string, icon *widget.Icon, status *widget.Label, btn *widget.Button, p *canvas.Circle, delayIdx int) {
+
+				time.Sleep(time.Duration(delayIdx) * 1500 * time.Millisecond)
+
 				latStr, lonStr, err := api.GetCoordinates(city)
 				if err != nil {
-					fyne.Do(func() { status.SetText("LOCALISATION IMPOSSIBLE") })
+					fyne.Do(func() { status.SetText(TR("loc_err")) })
 					return
 				}
 
@@ -149,9 +153,10 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 
 				client := &http.Client{Timeout: 10 * time.Second}
 				req, _ := http.NewRequest("GET", tileURL, nil)
-				req.Header.Set("User-Agent", "GroupieTracker/1.0")
+				req.Header.Set("User-Agent", "GroupieTracker-StudentProject/2.0 (education)")
 
 				resp, errImg := client.Do(req)
+
 				if errImg == nil && resp.StatusCode == 200 {
 					data, _ := io.ReadAll(resp.Body)
 					resp.Body.Close()
@@ -160,28 +165,33 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 					fyne.Do(func() {
 						icon.SetResource(res)
 						status.Hide()
-						p.Show() // Affiche le point rouge
-						btn.SetText("PLAN")
+						p.Show()
+						btn.SetText(TR("plan_btn"))
 						btn.OnTapped = func() {
 							u, _ := url.Parse(fmt.Sprintf("https://www.openstreetmap.org/?mlat=%s&mlon=%s", latStr, lonStr))
 							app.OpenURL(u)
 						}
 					})
+				} else {
+					fyne.Do(func() { status.SetText(TR("map_err")) })
+					if resp != nil {
+						resp.Body.Close()
+					}
 				}
-			}(locName, mapIcon, statusLbl, btnMap, pin)
+			}(locName, mapIcon, statusLbl, btnMap, pin, requestIndex)
+
+			requestIndex++
 
 			// --- LAYOUT CARTE ---
 			bgRect := canvas.NewRectangle(color.NRGBA{R: 40, G: 40, B: 50, A: 255})
 
-			// Empilement : Fond -> Carte -> Pin (Centré) -> Texte
 			mapStack := container.NewMax(
 				bgRect,
 				container.NewPadded(mapIcon),
-				container.NewCenter(pinWrapper), // Pin centré et dimensionné
+				container.NewCenter(pinWrapper),
 				container.NewCenter(statusLbl),
 			)
 
-			// Astuce Fyne : GridWrap pour forcer la taille de toute la carte à 600x350
 			mapContainer := container.NewGridWrap(fyne.NewSize(600, 350), mapStack)
 
 			infoBox := container.NewVBox(
@@ -200,7 +210,7 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 			cardsContainer.Add(widget.NewSeparator())
 		}
 	} else {
-		cardsContainer.Add(widget.NewLabel("Aucune donnée disponible"))
+		cardsContainer.Add(widget.NewLabel(TR("no_data")))
 	}
 
 	// --- LAYOUT GLOBAL ---
@@ -260,14 +270,11 @@ func createCyberCard(title, value string, icon fyne.Resource) fyne.CanvasObject 
 	content := container.NewVBox(container.NewCenter(iconW), valText, lblText)
 	bg := canvas.NewRectangle(ColCard)
 
-	// Utilisation d'un rectangle simple pour le décor
 	return container.NewMax(bg, container.NewPadded(content))
 }
 
 func loadDetailImage(url string, w, h float32) fyne.CanvasObject {
-	// Placeholder (Rectangle gris)
 	rect := canvas.NewRectangle(ColCard)
-	// Wrapper pour forcer la taille du placeholder
 	placeholderWrapper := container.NewGridWrap(fyne.NewSize(w, h), rect)
 
 	c := container.NewStack(placeholderWrapper)

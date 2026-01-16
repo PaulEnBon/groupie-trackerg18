@@ -36,8 +36,6 @@ const (
 func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.CanvasObject {
 	// --- ETAT LOCAL ---
 	currentMode := ModeList
-	favorites := LoadFavorites()
-	isDarkTheme := true
 
 	// Copie modifiable pour intégrer les groupes créés par l'utilisateur
 	localArtists := append([]models.Artist(nil), artists...)
@@ -50,11 +48,33 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 
 	bgRectangle := canvas.NewRectangle(ColBackground)
 
+	// Déclaration préalable pour l'utiliser dans les callbacks
 	var refreshContent func()
+
+	// --- WIDGETS DYNAMIQUES (pour la traduction) ---
+	title := canvas.NewText("", ColAccent) // Sera mis à jour par refreshContent
+	btnAdd := widget.NewButtonWithIcon("", theme.ContentAddIcon(), nil)
+	minCreationEntry := widget.NewEntry()
+	maxCreationEntry := widget.NewEntry()
+	minAlbumEntry := widget.NewEntry()
+	maxAlbumEntry := widget.NewEntry()
+	locationEntry := widget.NewEntry()
+	searchEntry := widget.NewEntry()
+	favOnlyCheck := widget.NewCheck("", nil)
+
+	// Labels pour les filtres
+	lblFav := widget.NewLabel("")
+	lblCrea := widget.NewLabel("")
+	lblAlbum := widget.NewLabel("")
+	lblMembers := widget.NewLabel("")
+	lblLoc := widget.NewLabel("")
+	accordionItem := widget.NewAccordionItem("", nil)
 
 	// --- NAVIGATION ---
 	showDetails := func(artist models.Artist) {
+		favorites := LoadFavorites()
 		isFav := favorites[artist.ID]
+		// NOTE : ArtistDetail reste partiellement en français car non traduit ici
 		detailView := ArtistDetail(app, artist, isFav, func() {
 			mainStack.Objects = mainStack.Objects[:1]
 			mainStack.Refresh()
@@ -75,10 +95,9 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 		rect.SetMinSize(fyne.NewSize(s, s))
 
 		go func() {
-			// Supporte URL distante et fichiers locaux (file:// ou chemin brut)
 			if strings.HasPrefix(url, "file://") || (!strings.Contains(url, "://") && url != "") {
 				path := strings.TrimPrefix(url, "file://")
-				if len(path) > 2 && path[0] == '/' && path[2] == ':' { // windows file URI -> drop leading slash
+				if len(path) > 2 && path[0] == '/' && path[2] == ':' {
 					path = path[1:]
 				}
 				f, err := os.Open(path)
@@ -97,7 +116,6 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 				}
 				return
 			}
-
 			resp, err := http.Get(url)
 			if err == nil && resp.StatusCode == 200 {
 				defer resp.Body.Close()
@@ -116,39 +134,21 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 		return c
 	}
 
-	// --- WIDGETS CONTROLE ---
+	// --- BOUTON PARAMETRES (Le cœur de la fonctionnalité) ---
+	btnSettings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
+		ShowSettingsModal(app, win, func() {
+			refreshContent() // Met à jour les textes quand on ferme les paramètres
+		})
+	})
 
-	// Bouton Thème
-	btnTheme := widget.NewButtonWithIcon("", theme.ColorPaletteIcon(), nil)
-	btnTheme.OnTapped = func() {
-		isDarkTheme = !isDarkTheme
-		if isDarkTheme {
-			ColBackground = color.NRGBA{R: 15, G: 10, B: 25, A: 255}
-			ColCard = color.NRGBA{R: 30, G: 25, B: 45, A: 255}
-			ColAccent = color.NRGBA{R: 0, G: 255, B: 255, A: 255}
-			ColText = color.NRGBA{R: 240, G: 240, B: 255, A: 255}
-			app.Settings().SetTheme(theme.DarkTheme())
-		} else {
-			ColBackground = color.NRGBA{R: 240, G: 240, B: 245, A: 255}
-			ColCard = color.NRGBA{R: 255, G: 255, B: 255, A: 255}
-			ColAccent = color.NRGBA{R: 0, G: 100, B: 200, A: 255}
-			ColText = color.NRGBA{R: 40, G: 40, B: 50, A: 255}
-			app.Settings().SetTheme(theme.LightTheme())
-		}
-		bgRectangle.FillColor = ColBackground
-		bgRectangle.Refresh()
-		refreshContent()
-	}
-
-	// Bouton ajout de groupe utilisateur
-	btnAdd := widget.NewButtonWithIcon("Créer un groupe", theme.ContentAddIcon(), func() {
+	// Setup Bouton Ajouter
+	btnAdd.OnTapped = func() {
 		form := UserBandForm(app, win,
-			func() { // onBack
+			func() {
 				mainStack.Objects = mainStack.Objects[:1]
 				mainStack.Refresh()
 			},
-			func(a models.Artist, rel map[string][]string) { // onSave
-				// Assigner un ID unique
+			func(a models.Artist, rel map[string][]string) {
 				maxID := 0
 				for _, ar := range localArtists {
 					if ar.ID > maxID {
@@ -163,21 +163,18 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 					a.FirstAlbum = "01-01-2000"
 				}
 				localArtists = append(localArtists, a)
-
 				locs := make([]string, 0, len(rel))
 				for city := range rel {
 					locs = append(locs, city)
 				}
 				artistLocations[a.ID] = locs
-
-				// Retour à la liste et rafraîchissement
 				mainStack.Objects = mainStack.Objects[:1]
 				mainStack.Refresh()
 				refreshContent()
 			},
 		)
 		mainStack.Add(container.NewMax(canvas.NewRectangle(ColBackground), form))
-	})
+	}
 	btnAdd.Importance = widget.HighImportance
 
 	// Menu de Tri
@@ -187,32 +184,12 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 		"Premier Album (Récent)", "Premier Album (Ancien)",
 	}
 	sortSelect := widget.NewSelect(sortOptions, func(s string) { refreshContent() })
-	sortSelect.PlaceHolder = "Trier par..."
 	sortSelect.Selected = "Nom (A-Z)"
 
-	// --- FILTRES ---
-	minCreationEntry := widget.NewEntry()
-	minCreationEntry.SetPlaceHolder("Année Min")
-	maxCreationEntry := widget.NewEntry()
-	maxCreationEntry.SetPlaceHolder("Année Max")
-
-	minAlbumEntry := widget.NewEntry()
-	minAlbumEntry.SetPlaceHolder("Min Album")
-	maxAlbumEntry := widget.NewEntry()
-	maxAlbumEntry.SetPlaceHolder("Max Album")
-
+	// --- CHECKBOX MEMBRES ---
 	membersOptions := []string{"1", "2", "3", "4", "5", "6", "7", "8+"}
 	membersCheckGroup := widget.NewCheckGroup(membersOptions, func(s []string) { refreshContent() })
 	membersCheckGroup.Horizontal = true
-
-	locationEntry := widget.NewEntry()
-	locationEntry.SetPlaceHolder("Ville ou Pays...")
-
-	favOnlyCheck := widget.NewCheck("Afficher seulement les favoris", func(b bool) { refreshContent() })
-
-	searchEntry := widget.NewEntry()
-	// Mise à jour du placeholder pour indiquer la nouvelle fonctionnalité
-	searchEntry.SetPlaceHolder("Recherche (Groupe ou Membre)...")
 
 	// Callbacks Auto-refresh
 	updateFilter := func(s string) { refreshContent() }
@@ -222,20 +199,39 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 	maxAlbumEntry.OnChanged = updateFilter
 	locationEntry.OnChanged = updateFilter
 	searchEntry.OnChanged = updateFilter
+	favOnlyCheck.OnChanged = func(b bool) { refreshContent() }
 
 	// --- LOGIQUE DE FILTRAGE ET TRI ---
 	refreshContent = func() {
-		var filtered []models.Artist
+		// 0. MISE A JOUR DES TEXTES (TRADUCTION)
+		title.Text = TR("app_title")
+		title.Refresh()
+		btnAdd.SetText(TR("btn_create"))
+		searchEntry.SetPlaceHolder(TR("search_place"))
+		sortSelect.PlaceHolder = TR("sort_place")
+		favOnlyCheck.Text = TR("fav_only")
+		favOnlyCheck.Refresh()
+		lblFav.SetText(TR("fav_only"))
+		lblCrea.SetText(TR("creation_date"))
+		lblAlbum.SetText(TR("first_album"))
+		lblMembers.SetText(TR("members"))
+		lblLoc.SetText(TR("location"))
+		accordionItem.Title = TR("filters")
+		if accordionItem.Detail != nil {
+			accordionItem.Detail.Refresh()
+		}
 
+		// 1. Recharger les favoris
+		favorites := LoadFavorites()
+
+		var filtered []models.Artist
 		searchFilter := strings.ToLower(searchEntry.Text)
 		locFilter := strings.ToLower(locationEntry.Text)
-
 		minCreation, _ := strconv.Atoi(minCreationEntry.Text)
 		maxCreation, _ := strconv.Atoi(maxCreationEntry.Text)
 		if maxCreation == 0 {
 			maxCreation = 3000
 		}
-
 		minAlbum, _ := strconv.Atoi(minAlbumEntry.Text)
 		maxAlbum, _ := strconv.Atoi(maxAlbumEntry.Text)
 		if maxAlbum == 0 {
@@ -252,34 +248,26 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 			}
 		}
 
-		// 1. FILTRAGE
 		for _, a := range localArtists {
 			if favOnlyCheck.Checked && !favorites[a.ID] {
 				continue
 			}
-
-			// --- MODIFICATION ICI : RECHERCHE PAR NOM OU MEMBRE ---
 			if searchFilter != "" {
 				matchName := strings.Contains(strings.ToLower(a.Name), searchFilter)
 				matchMember := false
-				// On boucle sur chaque membre pour voir si le texte correspond
 				for _, m := range a.Members {
 					if strings.Contains(strings.ToLower(m), searchFilter) {
 						matchMember = true
 						break
 					}
 				}
-				// Si ni le nom du groupe ni aucun membre ne correspond, on passe
 				if !matchName && !matchMember {
 					continue
 				}
 			}
-			// -----------------------------------------------------
-
 			if a.CreationDate < minCreation || a.CreationDate > maxCreation {
 				continue
 			}
-
 			var albumYear int
 			if len(a.FirstAlbum) >= 4 {
 				yearStr := a.FirstAlbum[len(a.FirstAlbum)-4:]
@@ -288,7 +276,6 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 			if albumYear != 0 && (albumYear < minAlbum || albumYear > maxAlbum) {
 				continue
 			}
-
 			if len(membersCheckGroup.Selected) > 0 {
 				count := len(a.Members)
 				match := false
@@ -299,7 +286,6 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 					continue
 				}
 			}
-
 			if locFilter != "" {
 				locs, hasLocs := artistLocations[a.ID]
 				if !hasLocs {
@@ -317,11 +303,10 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 					continue
 				}
 			}
-
 			filtered = append(filtered, a)
 		}
 
-		// 2. TRI (SORTING)
+		// TRI
 		sort.Slice(filtered, func(i, j int) bool {
 			a, b := filtered[i], filtered[j]
 			switch sortSelect.Selected {
@@ -339,25 +324,26 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 				da, _ := time.Parse("02-01-2006", a.FirstAlbum)
 				db, _ := time.Parse("02-01-2006", b.FirstAlbum)
 				return da.After(db)
-			default: // "Nom (A-Z)"
+			default:
 				return strings.ToLower(a.Name) < strings.ToLower(b.Name)
 			}
 		})
 
-		// 3. CONSTRUCTION UI
+		// CONSTRUCTION UI
 		var listObj fyne.CanvasObject
 
 		if currentMode == ModeList {
 			listBox := container.NewVBox()
 			for _, artist := range filtered {
 				cardBg := canvas.NewRectangle(ColCard)
-
 				img := loadImage(artist.Image, 70)
 				name := canvas.NewText(strings.ToUpper(artist.Name), ColAccent)
 				name.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 				name.TextSize = 18
 
-				year := canvas.NewText(fmt.Sprintf("%d | %d Membres", artist.CreationDate, len(artist.Members)), ColText)
+				// Traduction dynamique
+				txtMembres := TR("members")
+				year := canvas.NewText(fmt.Sprintf("%d | %d %s", artist.CreationDate, len(artist.Members), txtMembres), ColText)
 				year.TextSize = 12
 
 				var favIcon fyne.CanvasObject
@@ -366,7 +352,8 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 				} else {
 					favIcon = layout.NewSpacer()
 				}
-				btn := widget.NewButton("VOIR", func() { showDetails(artist) })
+
+				btn := widget.NewButton(TR("see_btn"), func() { showDetails(artist) })
 
 				row := container.NewBorder(nil, nil,
 					container.NewPadded(img),
@@ -379,11 +366,11 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 			}
 			listObj = container.NewVScroll(container.NewPadded(listBox))
 		} else {
+			// MODE GRILLE
 			gridContainer := container.NewGridWithColumns(3)
 			for _, artist := range filtered {
 				cardBg := canvas.NewRectangle(ColCard)
 				img := loadImage(artist.Image, 120)
-
 				name := widget.NewLabel(strings.ToUpper(artist.Name))
 				name.Alignment = fyne.TextAlignCenter
 				name.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
@@ -407,6 +394,8 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 			listObj = container.NewVScroll(container.NewPadded(gridContainer))
 		}
 
+		bgRectangle.FillColor = ColBackground
+		bgRectangle.Refresh()
 		contentContainer.Objects = []fyne.CanvasObject{listObj}
 		contentContainer.Refresh()
 	}
@@ -424,8 +413,7 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 		}
 	}()
 
-	// --- HEADER UI ---
-	title := canvas.NewText("GROUPIE // DATABASE", ColAccent)
+	// --- LAYOUT HEADER ---
 	title.TextSize = 20
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 
@@ -441,21 +429,19 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 		refreshContent()
 	}
 
-	topControl := container.NewBorder(nil, nil, title, container.NewHBox(btnAdd, btnTheme, btnToggle), nil)
+	topControl := container.NewBorder(nil, nil, title, container.NewHBox(btnAdd, btnSettings, btnToggle), nil)
 
 	filtersForm := container.NewVBox(
-		widget.NewLabel("Favoris"),
-		favOnlyCheck,
-		widget.NewLabel("Date de Création"),
-		container.NewGridWithColumns(2, minCreationEntry, maxCreationEntry),
-		widget.NewLabel("Premier Album"),
-		container.NewGridWithColumns(2, minAlbumEntry, maxAlbumEntry),
-		widget.NewLabel("Membres"),
-		membersCheckGroup,
-		widget.NewLabel("Lieu"),
-		locationEntry,
+		lblFav, favOnlyCheck,
+		lblCrea, container.NewGridWithColumns(2, minCreationEntry, maxCreationEntry),
+		lblAlbum, container.NewGridWithColumns(2, minAlbumEntry, maxAlbumEntry),
+		lblMembers, membersCheckGroup,
+		lblLoc, locationEntry,
 	)
-	accordion := widget.NewAccordion(widget.NewAccordionItem("FILTRES AVANCÉS", filtersForm))
+
+	accordionItem.Detail = filtersForm
+	accordionItem.Title = "FILTRES"
+	accordion := widget.NewAccordion(accordionItem)
 
 	header := container.NewVBox(
 		topControl,
@@ -464,7 +450,7 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 		widget.NewSeparator(),
 	)
 
-	refreshContent()
+	refreshContent() // Initialisation
 
 	pageLayout := container.NewBorder(header, nil, nil, nil, contentContainer)
 	mainStack.Add(container.NewMax(bgRectangle, pageLayout))

@@ -22,7 +22,8 @@ func GetCoordinates(city string) (string, string, error) {
 	url := fmt.Sprintf("https://nominatim.openstreetmap.org/search?q=%s&format=json&limit=1", q)
 
 	req, _ := http.NewRequest("GET", url, nil)
-	req.Header.Set("User-Agent", "GroupieTracker/1.0")
+	// CORRECTION : User-Agent plus spécifique pour éviter le blocage
+	req.Header.Set("User-Agent", "GroupieTracker-StudentProject/2.0 (education)")
 
 	resp, err := client.Do(req)
 	if err != nil {
