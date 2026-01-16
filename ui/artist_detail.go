@@ -62,17 +62,30 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 		nil,
 	)
 
-	// --- BARRE DE STREAMING ---
-	encodedName := url.QueryEscape(artist.Name)
-	spotifyUrl, _ := url.Parse("https://open.spotify.com/search/" + encodedName)
-	youtubeUrl, _ := url.Parse("https://www.youtube.com/results?search_query=" + encodedName)
-	deezerUrl, _ := url.Parse("https://www.deezer.com/search/" + encodedName)
+	// --- BARRE DE STREAMING (Affichée seulement si l'utilisateur fournit des liens) ---
+	var streamingBar fyne.CanvasObject
 
-	streamingBar := container.NewGridWithColumns(3,
-		widget.NewButton("SPOTIFY", func() { app.OpenURL(spotifyUrl) }),
-		widget.NewButton("YOUTUBE", func() { app.OpenURL(youtubeUrl) }),
-		widget.NewButton("DEEZER", func() { app.OpenURL(deezerUrl) }),
-	)
+	// Déterminer si on doit afficher la barre de streaming
+	hasStreamingLinks := artist.SpotifyLink != "" || artist.YoutubeLink != "" || artist.DeezerLink != ""
+
+	if hasStreamingLinks {
+		buttons := make([]fyne.CanvasObject, 0, 3)
+		if artist.SpotifyLink != "" {
+			spotifyUrl, _ := url.Parse(artist.SpotifyLink)
+			buttons = append(buttons, widget.NewButton("SPOTIFY", func() { app.OpenURL(spotifyUrl) }))
+		}
+		if artist.YoutubeLink != "" {
+			youtubeUrl, _ := url.Parse(artist.YoutubeLink)
+			buttons = append(buttons, widget.NewButton("YOUTUBE", func() { app.OpenURL(youtubeUrl) }))
+		}
+		if artist.DeezerLink != "" {
+			deezerUrl, _ := url.Parse(artist.DeezerLink)
+			buttons = append(buttons, widget.NewButton("DEEZER", func() { app.OpenURL(deezerUrl) }))
+		}
+		streamingBar = container.NewGridWithColumns(len(buttons), buttons...)
+	} else {
+		streamingBar = container.NewVBox() // Conteneur vide si pas de liens
+	}
 
 	// --- STATS ---
 	relation, err := api.FetchRelation(artist.ID)
