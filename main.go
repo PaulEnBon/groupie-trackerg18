@@ -19,7 +19,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	content := ui.ArtistList(a, artists)
+	content := ui.ArtistList(a, w, artists)
 	w.SetContent(content)
 	w.Resize(fyne.NewSize(800, 600))
 	w.ShowAndRun()

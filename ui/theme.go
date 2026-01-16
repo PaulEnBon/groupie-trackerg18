@@ -8,8 +8,8 @@ import (
 
 // --- COULEURS CYBERPUNK ---
 var (
-	ColBackground = color.NRGBA{R: 15, G: 10, B: 25, A: 255}    // Violet très sombre
-	ColCard       = color.NRGBA{R: 30, G: 25, B: 45, A: 255}    // Violet/Gris
+	ColBackground = color.NRGBA{R: 28, G: 30, B: 48, A: 255}    // Fond plus lisible
+	ColCard       = color.NRGBA{R: 45, G: 52, B: 78, A: 255}    // Cartes contrastées
 	ColAccent     = color.NRGBA{R: 0, G: 255, B: 255, A: 255}   // Cyan Fluo
 	ColHighlight  = color.NRGBA{R: 255, G: 0, B: 128, A: 255}   // Rose Fluo
 	ColText       = color.NRGBA{R: 240, G: 240, B: 255, A: 255} // Blanc bleuté

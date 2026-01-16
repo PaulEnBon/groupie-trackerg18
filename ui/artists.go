@@ -8,6 +8,7 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,11 +33,14 @@ const (
 	ModeGrid
 )
 
-func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
+func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.CanvasObject {
 	// --- ETAT LOCAL ---
 	currentMode := ModeList
 	favorites := LoadFavorites()
 	isDarkTheme := true
+
+	// Copie modifiable pour intégrer les groupes créés par l'utilisateur
+	localArtists := append([]models.Artist(nil), artists...)
 
 	// Map des localisations
 	artistLocations := make(map[int][]string)
@@ -71,6 +75,29 @@ func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
 		rect.SetMinSize(fyne.NewSize(s, s))
 
 		go func() {
+			// Supporte URL distante et fichiers locaux (file:// ou chemin brut)
+			if strings.HasPrefix(url, "file://") || (!strings.Contains(url, "://") && url != "") {
+				path := strings.TrimPrefix(url, "file://")
+				if len(path) > 2 && path[0] == '/' && path[2] == ':' { // windows file URI -> drop leading slash
+					path = path[1:]
+				}
+				f, err := os.Open(path)
+				if err == nil {
+					defer f.Close()
+					imgData, _, errDec := image.Decode(f)
+					if errDec == nil {
+						fyne.Do(func() {
+							img := canvas.NewImageFromImage(imgData)
+							img.FillMode = canvas.ImageFillContain
+							img.SetMinSize(fyne.NewSize(s, s))
+							c.Objects = []fyne.CanvasObject{img}
+							c.Refresh()
+						})
+					}
+				}
+				return
+			}
+
 			resp, err := http.Get(url)
 			if err == nil && resp.StatusCode == 200 {
 				defer resp.Body.Close()
@@ -112,6 +139,46 @@ func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
 		bgRectangle.Refresh()
 		refreshContent()
 	}
+
+	// Bouton ajout de groupe utilisateur
+	btnAdd := widget.NewButtonWithIcon("Créer un groupe", theme.ContentAddIcon(), func() {
+		form := UserBandForm(app, win,
+			func() { // onBack
+				mainStack.Objects = mainStack.Objects[:1]
+				mainStack.Refresh()
+			},
+			func(a models.Artist, rel map[string][]string) { // onSave
+				// Assigner un ID unique
+				maxID := 0
+				for _, ar := range localArtists {
+					if ar.ID > maxID {
+						maxID = ar.ID
+					}
+				}
+				a.ID = maxID + 1
+				if strings.TrimSpace(a.Image) == "" {
+					a.Image = "https://via.placeholder.com/300x300.png?text=Band"
+				}
+				if strings.TrimSpace(a.FirstAlbum) == "" {
+					a.FirstAlbum = "01-01-2000"
+				}
+				localArtists = append(localArtists, a)
+
+				locs := make([]string, 0, len(rel))
+				for city := range rel {
+					locs = append(locs, city)
+				}
+				artistLocations[a.ID] = locs
+
+				// Retour à la liste et rafraîchissement
+				mainStack.Objects = mainStack.Objects[:1]
+				mainStack.Refresh()
+				refreshContent()
+			},
+		)
+		mainStack.Add(container.NewMax(canvas.NewRectangle(ColBackground), form))
+	})
+	btnAdd.Importance = widget.HighImportance
 
 	// Menu de Tri
 	sortOptions := []string{
@@ -186,7 +253,7 @@ func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
 		}
 
 		// 1. FILTRAGE
-		for _, a := range artists {
+		for _, a := range localArtists {
 			if favOnlyCheck.Checked && !favorites[a.ID] {
 				continue
 			}
@@ -374,7 +441,7 @@ func ArtistList(app fyne.App, artists []models.Artist) fyne.CanvasObject {
 		refreshContent()
 	}
 
-	topControl := container.NewBorder(nil, nil, title, container.NewHBox(btnTheme, btnToggle), nil)
+	topControl := container.NewBorder(nil, nil, title, container.NewHBox(btnAdd, btnTheme, btnToggle), nil)
 
 	filtersForm := container.NewVBox(
 		widget.NewLabel("Favoris"),
