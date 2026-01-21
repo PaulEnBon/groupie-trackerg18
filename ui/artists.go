@@ -25,7 +25,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// Mode d'affichage
 type ViewMode int
 
 const (
@@ -46,11 +45,12 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 	bgRectangle := canvas.NewRectangle(ColBackground)
 
 	var refreshContent func()
-
-	// --- WIDGETS DYNAMIQUES ---
-	title := canvas.NewText("", ColAccent) // Sera mis à jour par refreshContent
+	title := canvas.NewText("", ColAccent)
 	btnAdd := widget.NewButtonWithIcon("", theme.ContentAddIcon(), nil)
 	minCreationEntry := widget.NewEntry()
+	
+	countLabel := widget.NewLabel("") 
+	
 	maxCreationEntry := widget.NewEntry()
 	minAlbumEntry := widget.NewEntry()
 	maxAlbumEntry := widget.NewEntry()
@@ -68,7 +68,6 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 	showDetails := func(artist models.Artist) {
 		favorites := LoadFavorites()
 		isFav := favorites[artist.ID]
-		// NOTE : ArtistDetail reste partiellement en français car non traduit ici
 		detailView := ArtistDetail(app, artist, isFav, func() {
 			mainStack.Objects = mainStack.Objects[:1]
 			mainStack.Refresh()
@@ -81,12 +80,10 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 		mainStack.Add(detailView)
 	}
 
-	// --- HELPER IMAGE ---
 	loadImage := func(url string, s float32) fyne.CanvasObject {
 		rect := canvas.NewRectangle(color.NRGBA{R: 40, G: 40, B: 50, A: 255})
 		rect.SetMinSize(fyne.NewSize(s, s))
 		c := container.NewMax(rect)
-		rect.SetMinSize(fyne.NewSize(s, s))
 
 		go func() {
 			if strings.HasPrefix(url, "file://") || (!strings.Contains(url, "://") && url != "") {
@@ -128,14 +125,12 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 		return c
 	}
 
-	// --- BOUTON PARAMETRES ---
 	btnSettings := widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
 		ShowSettingsModal(app, win, func() {
 			refreshContent()
 		})
 	})
 
-	// Setup Bouton Ajouter
 	btnAdd.OnTapped = func() {
 		form := UserBandForm(app, win,
 			func() {
@@ -316,6 +311,12 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 			}
 		})
 
+		countText := fmt.Sprintf("%d artistes trouvés", len(filtered))
+		if len(filtered) <= 1 {
+			countText = fmt.Sprintf("%d artiste trouvé", len(filtered))
+		}
+		countLabel.SetText(countText)
+
 		var listObj fyne.CanvasObject
 
 		if currentMode == ModeList {
@@ -428,6 +429,7 @@ func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.Can
 	header := container.NewVBox(
 		topControl,
 		container.NewGridWithColumns(2, searchEntry, sortSelect),
+		countLabel,
 		accordion,
 		widget.NewSeparator(),
 	)
