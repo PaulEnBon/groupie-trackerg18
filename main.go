@@ -21,6 +21,6 @@ func main() {
 
 	content := ui.ArtistList(a, w, artists)
 	w.SetContent(content)
-	w.Resize(fyne.NewSize(800, 600))
+	w.Resize(fyne.NewSize(1024, 768))
 	w.ShowAndRun()
 }
