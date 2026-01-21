@@ -25,16 +25,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// ArtistDetail affiche les détails d'un artiste
 func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack func(), onToggleFavorite func(bool)) fyne.CanvasObject {
 
-	// --- HEADER ---
 	title := canvas.NewText(strings.ToUpper(artist.Name), ColAccent)
 	title.TextSize = 32
 	title.TextStyle = fyne.TextStyle{Bold: true, Monospace: true}
 	title.Alignment = fyne.TextAlignCenter
 
-	// --- BOUTON FAVORIS (Traduit) ---
 	var favBtn *widget.Button
 	updateFavBtn := func(state bool) {
 		if state {
@@ -55,17 +52,14 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 	})
 	updateFavBtn(isFavorite)
 
-	// Header container
 	headerTop := container.NewBorder(nil, nil,
 		widget.NewButtonWithIcon(TR("back_btn"), theme.NavigateBackIcon(), onBack),
 		favBtn,
 		nil,
 	)
 
-	// --- BARRE DE STREAMING + WIKIPEDIA (Bonus) ---
 	buttons := make([]fyne.CanvasObject, 0)
 
-	// Bonus : Bouton Wikipedia
 	wikiUrl, _ := url.Parse("https://www.wikipedia.org/w/index.php?search=" + url.QueryEscape(artist.Name))
 	btnWiki := widget.NewButtonWithIcon(TR("wiki_btn"), theme.SearchIcon(), func() {
 		app.OpenURL(wikiUrl)
@@ -103,13 +97,11 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 		createCyberCard(TR("concerts_cnt"), fmt.Sprintf("%d", concertCount), theme.InfoIcon()),
 	)
 
-	// --- LISTE MEMBRES ---
 	membersVBox := container.NewVBox()
 	for _, m := range artist.Members {
 		membersVBox.Add(canvas.NewText(" "+m, ColText))
 	}
 
-	// --- CONCERTS + MAPS (Traduit + Fix OSM) ---
 	concertsTitle := canvas.NewText(TR("sat_view"), ColHighlight)
 	concertsTitle.TextSize = 16
 	concertsTitle.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
@@ -131,12 +123,10 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 				app.OpenURL(u)
 			})
 
-			// --- PIN (POINT ROUGE) ---
 			pin := canvas.NewCircle(color.NRGBA{R: 255, G: 0, B: 50, A: 255})
 			pin.Hide()
 			pinWrapper := container.NewGridWrap(fyne.NewSize(15, 15), pin)
 
-			// Goroutine GPS (Fix anti-spam OSM)
 			go func(city string, icon *widget.Icon, status *widget.Label, btn *widget.Button, p *canvas.Circle, delayIdx int) {
 
 				time.Sleep(time.Duration(delayIdx) * 1500 * time.Millisecond)
@@ -182,7 +172,6 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 
 			requestIndex++
 
-			// --- LAYOUT CARTE ---
 			bgRect := canvas.NewRectangle(color.NRGBA{R: 40, G: 40, B: 50, A: 255})
 
 			mapStack := container.NewMax(
@@ -213,7 +202,6 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 		cardsContainer.Add(widget.NewLabel(TR("no_data")))
 	}
 
-	// --- LAYOUT GLOBAL ---
 	avatar := loadDetailImage(artist.Image, 220, 220)
 	imgBorder := canvas.NewRectangle(color.Transparent)
 	imgBorder.StrokeColor = ColAccent
@@ -254,8 +242,6 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 
 	return container.NewMax(mainBg, page)
 }
-
-// --- FONCTIONS UTILITAIRES ---
 
 func createCyberCard(title, value string, icon fyne.Resource) fyne.CanvasObject {
 	iconW := widget.NewIcon(icon)

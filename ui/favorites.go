@@ -11,7 +11,6 @@ const favFileName = "favorites.json"
 // Gestionnaire de favoris avec Mutex pour éviter les conflits
 var favLock sync.Mutex
 
-// LoadFavorites charge la liste des IDs favoris depuis le disque
 func LoadFavorites() map[int]bool {
 	favLock.Lock()
 	defer favLock.Unlock()
@@ -20,7 +19,7 @@ func LoadFavorites() map[int]bool {
 
 	file, err := os.Open(favFileName)
 	if err != nil {
-		return favs // Retourne vide si le fichier n'existe pas
+		return favs
 	}
 	defer file.Close()
 
@@ -33,7 +32,7 @@ func LoadFavorites() map[int]bool {
 	return favs
 }
 
-// SaveFavorites sauvegarde la map des favoris sur le disque
+// SaveFavorites sauvegarde la map des favoris sur le .json
 func SaveFavorites(favs map[int]bool) {
 	favLock.Lock()
 	defer favLock.Unlock()

@@ -66,7 +66,6 @@ func FetchAllLocationsMap() (map[int][]string, error) {
 	}
 	defer resp.Body.Close()
 
-	// Structure temporaire pour décoder l'index des locations
 	var result struct {
 		Index []struct {
 			ID        int      `json:"id"`
@@ -78,7 +77,6 @@ func FetchAllLocationsMap() (map[int][]string, error) {
 		return nil, err
 	}
 
-	// On convertit en Map pour un accès rapide (ID -> Liste de lieux)
 	locMap := make(map[int][]string)
 	for _, item := range result.Index {
 		locMap[item.ID] = item.Locations

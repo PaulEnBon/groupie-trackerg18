@@ -48,7 +48,7 @@ var dictionary = map[string]map[string]string{
 		"success_title": "Succès",
 		"export_msg":    "Liste exportée avec succès !",
 		"import_msg":    "Liste importée avec succès !",
-		"about_text":    "Groupie Tracker v2.0\nCréé par Paul, Abubakar, Lyna\nProjet Étudiant Ynov",
+		"about_text":    "Groupie Tracker v2.0\nCréé par Paul, Aboubakar, Lina\nProjet Étudiant Ynov",
 	},
 	"EN": {
 		"app_title":       "GROUPIE // DATABASE",
@@ -93,7 +93,7 @@ var dictionary = map[string]map[string]string{
 		"success_title": "Success",
 		"export_msg":    "List exported successfully!",
 		"import_msg":    "List imported successfully!",
-		"about_text":    "Groupie Tracker v2.0\nCreated by Paul, Abubakar, Lyna\nStudent Project Ynov",
+		"about_text":    "Groupie Tracker v2.0\nCreated by Paul, Aboubakar, Lina\nStudent Project Ynov",
 	},
 	"ES": {
 		"app_title":       "GROUPIE // BASE DE DATOS",
@@ -138,7 +138,7 @@ var dictionary = map[string]map[string]string{
 		"success_title": "Éxito",
 		"export_msg":    "¡Lista exportada con éxito!",
 		"import_msg":    "¡Lista importada con éxito!",
-		"about_text":    "Groupie Tracker v2.0\nCreado por Paul, Abubakar, Lyna\nProyecto Estudiantil Ynov",
+		"about_text":    "Groupie Tracker v2.0\nCreado por Paul, Aboubakar, Lina\nProyecto Estudiantil Ynov",
 	},
 	"DE": {
 		"app_title":       "GROUPIE // DATENBANK",
@@ -183,7 +183,7 @@ var dictionary = map[string]map[string]string{
 		"success_title": "Erfolg",
 		"export_msg":    "Liste erfolgreich exportiert!",
 		"import_msg":    "Liste erfolgreich importiert!",
-		"about_text":    "Groupie Tracker v2.0\nErstellt von Paul, Abubakar, Lyna\nStudentenprojekt Ynov",
+		"about_text":    "Groupie Tracker v2.0\nErstellt von Paul, Aboubakar, Lina\nStudentenprojekt Ynov",
 	},
 }
 

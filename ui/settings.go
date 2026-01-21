@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// ShowSettingsModal affiche une modale de configuration
 func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
 
 	// 1. SELECTEUR DE LANGUE
@@ -60,7 +59,6 @@ func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
 			}
 			defer writer.Close()
 
-			// On charge les favoris actuels
 			favs := LoadFavorites()
 			var ids []int
 			for id, isFav := range favs {
@@ -69,13 +67,11 @@ func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
 				}
 			}
 
-			// On écrit le JSON
 			if json.NewEncoder(writer).Encode(ids) == nil {
 				dialog.ShowInformation(TR("success_title"), TR("export_msg"), win)
 			}
 		}, win)
 	})
-	// Suggestion de nom de fichier par défaut
 	btnExport.OnTapped = func() {
 		d := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if err != nil || writer == nil {
@@ -166,7 +162,6 @@ func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
 		}),
 	)
 
-	// Affichage via une CustomDialog
 	d := dialog.NewCustom(TR("settings_title"), TR("btn_close"), content, win)
 	d.SetOnClosed(func() {
 		onRefresh()

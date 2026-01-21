@@ -15,7 +15,6 @@ var (
 	ColText       = color.NRGBA{R: 240, G: 240, B: 255, A: 255} // Blanc bleuté
 )
 
-// toTitle : Fonction utilitaire pour le formatage de texte
 func toTitle(s string) string {
 	words := strings.Fields(s)
 	for i, word := range words {

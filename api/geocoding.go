@@ -16,13 +16,11 @@ type GeoResult struct {
 
 var client = &http.Client{Timeout: 10 * time.Second}
 
-// GetCoordinates : Trouve Lat/Lon via le nom de la ville
 func GetCoordinates(city string) (string, string, error) {
 	q := url.QueryEscape(city)
 	url := fmt.Sprintf("https://nominatim.openstreetmap.org/search?q=%s&format=json&limit=1", q)
 
 	req, _ := http.NewRequest("GET", url, nil)
-	// CORRECTION : User-Agent plus spécifique pour éviter le blocage
 	req.Header.Set("User-Agent", "GroupieTracker-StudentProject/2.0 (education)")
 
 	resp, err := client.Do(req)
@@ -38,7 +36,6 @@ func GetCoordinates(city string) (string, string, error) {
 	return res[0].Lat, res[0].Lon, nil
 }
 
-// GetOSMTileURL : Calcule l'URL de l'image (Tuile) pour une position
 func GetOSMTileURL(lat, lon float64, zoom int) string {
 	x := int(math.Floor((lon + 180.0) / 360.0 * math.Pow(2.0, float64(zoom))))
 	latRad := lat * math.Pi / 180.0
