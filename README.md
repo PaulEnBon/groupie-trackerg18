@@ -101,8 +101,6 @@ L'application récupère les données (artistes, lieux, dates, relations) depuis
 
 ## 📂 Structure du Projet
 
-
-
 ```text
 groupie-tracker/
 ├── api/            # Gestion des appels API (Fetch, Geocoding)
