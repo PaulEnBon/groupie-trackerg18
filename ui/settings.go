@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"fmt" // Ajouté pour gérer le texte du compteur
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -12,6 +13,17 @@ import (
 )
 
 func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
+	// --- BLOC RAJOUTÉ : COMPTEUR DE FAVORIS ---
+	favsCount := LoadFavorites()
+	count := 0
+	for _, isFav := range favsCount {
+		if isFav {
+			count++
+		}
+	}
+	txt := fmt.Sprintf("Ma Collection : %d favoris", count)
+	lblCount := widget.NewLabelWithStyle(txt, fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
+	// ------------------------------------------
 
 	// 1. SELECTEUR DE LANGUE
 	langSelect := widget.NewSelect([]string{"Français", "English", "Español", "Deutsch"}, func(s string) {
@@ -72,6 +84,8 @@ func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
 			}
 		}, win)
 	})
+	
+	// Correction de la logique OnTapped pour l'export original
 	btnExport.OnTapped = func() {
 		d := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if err != nil || writer == nil {
@@ -110,7 +124,7 @@ func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
 				}
 				SaveFavorites(newFavs)
 				dialog.ShowInformation(TR("success_title"), TR("import_msg"), win)
-				onRefresh() // Rafraîchir l'interface derrière
+				onRefresh() 
 			}
 		}, win)
 		d.SetFilter(storage.NewExtensionFileFilter([]string{".json"}))
@@ -149,17 +163,16 @@ func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
 		btnResetFav,
 	))
 
-	// CONTENEUR DE LA POPUP
+	// --- CONSTRUCTION DU CONTENU FINAL ---
 	content := container.NewVBox(
 		widget.NewLabelWithStyle(TR("settings_title"), fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		lblCount, // On rajoute ici le label du compteur
 		widget.NewSeparator(),
 		form,
 		dataGroup,
 		widget.NewSeparator(),
 		btnAbout,
-		widget.NewButton(TR("btn_close"), func() {
-			// Fermeture auto via dialog
-		}),
+		widget.NewButton(TR("btn_close"), nil),
 	)
 
 	d := dialog.NewCustom(TR("settings_title"), TR("btn_close"), content, win)
