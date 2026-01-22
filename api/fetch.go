@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -16,6 +17,10 @@ func FetchArtists() ([]models.Artist, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("erreur API: status %d", resp.StatusCode)
+	}
 
 	var artists []models.Artist
 	err = json.NewDecoder(resp.Body).Decode(&artists)
