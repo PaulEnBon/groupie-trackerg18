@@ -33,16 +33,18 @@ const (
 )
 
 func ArtistList(app fyne.App, win fyne.Window, artists []models.Artist) fyne.CanvasObject {
-	currentMode := ModeList
+    currentMode := ModeList
 
-	localArtists := append([]models.Artist(nil), artists...)
+    localArtists := append([]models.Artist(nil), artists...)
 
-	artistLocations := make(map[int][]string)
+    sort.Slice(localArtists, func(i, j int) bool {
+        return strings.ToLower(localArtists[i].Name) < strings.ToLower(localArtists[j].Name)
+    })
 
-	mainStack := container.NewStack()
-	contentContainer := container.NewStack()
-
-	bgRectangle := canvas.NewRectangle(ColBackground)
+    artistLocations := make(map[int][]string)
+    mainStack := container.NewStack()
+    contentContainer := container.NewStack()
+    bgRectangle := canvas.NewRectangle(ColBackground)
 
 	var refreshContent func()
 	title := canvas.NewText("", ColAccent)
