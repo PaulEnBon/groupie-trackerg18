@@ -1,106 +1,134 @@
-Groupie Tracker
-Groupie Tracker est une application de bureau développée en Go avec le framework Fyne. Elle permet de visualiser, rechercher et gérer des données sur des artistes et groupes de musique via une API RESTful, tout en offrant des fonctionnalités avancées de personnalisation et de gestion de données utilisateur.
+# 🎸 Groupie Tracker
 
-📋 Description
-Ce projet va au-delà d'un simple visualiseur de données. Il propose une interface ergonomique (respectant les principes de Shneiderman) pour explorer l'univers musical. L'utilisateur peut non seulement consulter les données de l'API (membres, concerts, dates), mais aussi enrichir l'application en créant ses propres groupes, en gérant ses favoris et en personnalisant l'affichage.
+![Go Version](https://img.shields.io/badge/Go-1.25.0-blue?style=flat&logo=go)
+![Fyne Version](https://img.shields.io/badge/Fyne-v2.7.2-orange?style=flat&logo=gui)
+![Status](https://img.shields.io/badge/Status-Completed-success)
 
-✨ Fonctionnalités Principales
-🔍 Recherche et Filtres Avancés
-Un système de filtrage puissant pour trouver exactement ce que vous cherchez :
+**Groupie Tracker** est une application de bureau performante développée en **Go** utilisant le framework graphique **Fyne**. Elle offre une interface ergonomique pour visualiser, rechercher et manipuler des données sur des artistes et groupes de musique via une API RESTful, tout en respectant les principes de conception d'interface de *Shneiderman*.
 
-Barre de recherche intelligente : Recherche instantanée par nom d'artiste ou par nom de membre.
+---
 
-Filtres par dates : Sélecteurs de plage pour l'année de création et la date du premier album.
+## 📑 Table des Matières
+- [Description](#-description)
+- [Fonctionnalités](#-fonctionnalités)
+- [Stack Technique](#-stack-technique)
+- [Prérequis](#-prérequis)
+- [Installation et Démarrage](#-installation-et-démarrage)
+- [Structure du Projet](#-structure-du-projet)
+- [Auteurs](#-auteurs)
 
-Filtre par membres : Cochez le nombre de membres désiré (ex: duos, trios, groupes de 8+).
+---
 
-Filtre de localisation : Recherchez les groupes passant par une ville spécifique.
+## 📋 Description
 
-Tri dynamique : Ordonnez les résultats par nom, date de création ou date de premier album.
+Ce projet étudiant (Ynov) dépasse le simple cadre de la visualisation de données JSON. Il propose une expérience utilisateur fluide permettant d'explorer l'univers musical, de géolocaliser des concerts et de gérer des données personnelles.
 
-🌟 Gestion des Favoris & Données (Bonus)
-Système de favoris : Marquez vos groupes préférés pour les retrouver instantanément.
+L'application récupère les données (artistes, lieux, dates, relations) depuis une API distante et permet également à l'utilisateur d'enrichir cette base de données localement.
 
-Import / Export : Sauvegardez votre liste de favoris dans un fichier JSON et importez-la sur une autre machine via le panneau des paramètres.
+---
 
-Persistance : Les données sont sauvegardées localement.
+## ✨ Fonctionnalités
 
-🎸 Création de Groupe Personnalisé (Bonus)
-L'application permet d'ajouter vos propres entrées à la liste :
+### 🔍 Recherche et Exploration Avancées
+* **Barre de recherche intelligente :** Filtrage en temps réel par nom d'artiste, membre ou lieu.
+* **Filtres dynamiques :**
+    * *Dates :* Création du groupe et sortie du premier album (Range Selectors).
+    * *Membres :* Sélection par nombre de membres (duo, trio, etc.).
+    * *Localisation :* Filtrage par ville de concert.
+* **Tri :** Ordonnancement par nom, date de création ou premier album.
 
-Formulaire complet : Nom, image (upload ou URL), dates, membres.
+### 🗺️ Géolocalisation & Cartographie
+* **OpenStreetMap Integration :** Utilisation de l'API **Nominatim** pour convertir les lieux de concerts en coordonnées GPS.
+* **Visualisation :** Affichage des points de concert sur une carte interactive (Tuiles OSM).
 
-Gestion des concerts : Ajoutez vos propres dates et lieux.
+### 🌟 Expérience Utilisateur & Personnalisation (Bonus)
+* **Système de Favoris :** Marquage des groupes préférés avec persistance locale (fichier JSON).
+* **Import / Export :** Partagez votre liste de favoris via des fichiers JSON (Géré dans les paramètres).
+* **Internationalisation (i18n) :** Interface disponible en 4 langues :
+    * 🇫🇷 Français
+    * 🇬🇧 Anglais
+    * 🇪🇸 Espagnol
+    * 🇩🇪 Allemand
+* **Thèmes Graphiques :** Support natif des modes **Clair** (Light) et **Sombre** (Dark).
 
-Liens sociaux : Ajoutez des liens Spotify, YouTube et Deezer.
+### 🎸 Création de Contenu (Bonus)
+* **Formulaire de création :** Possibilité d'ajouter des artistes personnalisés (Nom, Image, Membres, Dates).
+* **Intégration Mureka :** Lien direct pour la génération musicale par IA pour les nouveaux artistes.
 
-Intégration AI : Un lien direct vers Mureka pour générer de la musique par IA si vous n'avez pas encore de morceaux !
+---
 
-⚙️ Personnalisation et Paramètres (Bonus)
-Internationalisation (i18n) : Interface traduite en 4 langues (Français, Anglais, Espagnol, Allemand).
+## 🛠 Stack Technique
 
-Thèmes : Basculez entre le mode Clair (Light) et le mode Sombre (Dark).
+* **Langage :** Go (v1.25.0)
+* **Framework GUI :** [Fyne](https://fyne.io/) (v2.7.2)
+* **Architecture :** MVC (Model-View-Controller) adapté.
+* **Données :**
+    * API RESTful (Source externe)
+    * JSON (Stockage local des favoris et préférences)
+* **Services Tiers :**
+    * Nominatim (OpenStreetMap) pour le géocodage inversé.
 
-Affichage : Choix entre une vue Liste détaillée ou une vue Grille plus visuelle.
+---
 
-🗺️ Géolocalisation
-Conversion automatique des lieux de concerts en coordonnées géographiques.
+## 🚀 Prérequis
 
-Affichage des concerts sur une carte interactive (si implémenté dans la vue détail).
+Avant de lancer l'application, assurez-vous d'avoir les éléments suivants installés :
 
-🛠️ Stack Technique
-Langage : Go (v1.25.0)
+1.  **Go** : Version 1.21 ou supérieure (le projet utilise la 1.25).
+2.  **Compilateur C (GCC)** : Indispensable pour Fyne (liaison CGO avec les bibliothèques graphiques système).
 
-Framework GUI : Fyne (v2.7.2)
+### Installation des dépendances graphiques (OS spécifiques) :
 
-Format de données : JSON (API + Sauvegarde locale)
+* **Linux (Debian/Ubuntu) :**
+    ```bash
+    sudo apt-get install golang-go gcc libgl1-mesa-dev xorg-dev
+    ```
+* **Windows :**
+    Installer TDM-GCC ou Mingw-w64.
+* **macOS :**
+    Installer les Xcode Command Line Tools : `xcode-select --install`.
 
-Architecture : Modulaire (api, ui, models)
+---
 
-🚀 Prérequis
-Go : Version 1.21 ou supérieure recommandée.
+## 📦 Installation et Démarrage
 
-Dépendances C : Un compilateur C (GCC) est requis pour Fyne (pour le rendu graphique OpenGL).
+1.  **Cloner le dépôt :**
+    ```bash
+    git clone [https://github.com/votre-username/groupie-tracker.git](https://github.com/votre-username/groupie-tracker.git)
+    cd groupie-tracker
+    ```
 
-Linux : sudo apt-get install golang-go gcc libgl1-mesa-dev xorg-dev
+2.  **Installer les dépendances Go :**
+    ```bash
+    go mod tidy
+    ```
 
-Windows : TDM-GCC ou Mingw-w64.
+3.  **Lancer l'application :**
+    ```bash
+    go run main.go
+    ```
 
-macOS : Xcode Command Line Tools.
+---
 
-📦 Installation et Lancement
-Cloner le dépôt :
+## 📂 Structure du Projet
 
-Bash
+L'architecture du code est modulaire pour faciliter la maintenance :
 
-git clone https://github.com/votre-username/groupie-tracker.git
-cd groupie-tracker
-Installer les dépendances :
-
-Bash
-
-go mod tidy
-Lancer l'application :
-
-Bash
-
-go run main.go
-📂 Structure du Projet
-main.go : Point d'entrée, initialise l'application et la fenêtre principale.
-
-ui/ : Contient toute la logique de l'interface utilisateur.
-
-artists.go : Liste principale et logique de filtrage.
-
-user_band_form.go : Formulaire de création de groupe.
-
-settings.go : Modale des paramètres (Langue, Thème, Import/Export).
-
-favorites.go : Gestion de la persistance des favoris.
-
-api/ : Gestion des appels vers l'API externe.
-
-models/ : Définition des structures de données (Artist, Location, etc.).
-
+```text
+groupie-tracker/
+├── api/            # Gestion des appels API (Fetch, Geocoding)
+├── models/         # Structures de données (Artist, Location, Relation)
+├── ui/             # Logique de l'interface (Vues, I18n, Thèmes, Forms)
+├── favorites.json  # Persistance des données utilisateur
+├── main.go         # Point d'entrée de l'application
+├── go.mod          # Définition des modules et dépendances
+└── README.md       # Documentation
 👥 Auteurs
-Projet réalisé par Paul, Lina, Aboubakar
+Projet réalisé dans le cadre du cursus Ynov par :
+```
+
+Paul
+
+Lina
+
+Aboubakar
