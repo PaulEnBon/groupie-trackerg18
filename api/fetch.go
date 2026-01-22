@@ -11,6 +11,8 @@ import (
 
 const baseURL = "https://groupietrackers.herokuapp.com/api"
 
+var cacheRelation = make(map[int]*models.Relation)
+
 func FetchArtists() ([]models.Artist, error) {
 	resp, err := http.Get(baseURL + "/artists")
 	if err != nil {
@@ -32,19 +34,24 @@ func FetchArtists() ([]models.Artist, error) {
 }
 
 func FetchRelation(id int) (*models.Relation, error) {
-	resp, err := http.Get(baseURL + "/relation/" + strconv.Itoa(id))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+    if donnee, existe := cacheRelation[id]; existe {
+        return donnee, nil
+    }
 
-	var relation models.Relation
-	err = json.NewDecoder(resp.Body).Decode(&relation)
-	if err != nil {
-		return nil, err
-	}
+    resp, err := http.Get(baseURL + "/relation/" + strconv.Itoa(id))
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
 
-	return &relation, nil
+    var relation models.Relation
+    err = json.NewDecoder(resp.Body).Decode(&relation)
+    if err != nil {
+        return nil, err
+    }
+
+    cacheRelation[id] = &relation
+    return &relation, nil
 }
 
 func FetchLocations(id int) (*models.Location, error) {
