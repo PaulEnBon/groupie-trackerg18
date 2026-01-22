@@ -60,6 +60,12 @@ func ArtistDetail(app fyne.App, artist models.Artist, isFavorite bool, onBack fu
 
 	buttons := make([]fyne.CanvasObject, 0)
 
+	
+	btnCopy := widget.NewButtonWithIcon("Copier le nom", theme.ContentCopyIcon(), func() {
+    app.Driver().AllWindows()[0].Clipboard().SetContent(artist.Name)
+	})
+	buttons = append(buttons, btnCopy)
+
 	wikiUrl, _ := url.Parse("https://www.wikipedia.org/w/index.php?search=" + url.QueryEscape(artist.Name))
 	btnWiki := widget.NewButtonWithIcon(TR("wiki_btn"), theme.SearchIcon(), func() {
 		app.OpenURL(wikiUrl)
