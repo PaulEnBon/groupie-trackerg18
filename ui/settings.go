@@ -37,6 +37,8 @@ func ShowSettingsModal(app fyne.App, win fyne.Window, onRefresh func()) {
 		default:
 			CurrentLang = "FR"
 		}
+
+		dialog.ShowInformation("Configuration", "Langue modifiée : "+s, win)
 	})
 
 	// Sélection par défaut
